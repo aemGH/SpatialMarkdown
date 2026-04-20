@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
+
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+
+    "jsx": "react-jsx",
+
+    "paths": {
+      "@spatial/types": ["./src/types/index.ts"],
+      "@spatial/types/*": ["./src/types/*"],
+      "@spatial/parser": ["./src/parser/index.ts"],
+      "@spatial/parser/*": ["./src/parser/*"],
+      "@spatial/engine": ["./src/engine/index.ts"],
+      "@spatial/engine/*": ["./src/engine/*"],
+      "@spatial/renderer": ["./src/renderer/index.ts"],
+      "@spatial/renderer/*": ["./src/renderer/*"],
+      "@spatial/bridge": ["./src/bridge/index.ts"],
+      "@spatial/bridge/*": ["./src/bridge/*"]
+    },
+
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist", "tests"]
+}

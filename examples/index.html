@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spatial Markdown Engine — Live Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #0f1117;
+      color: #e1e4e8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #21262d;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #161b22;
+    }
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f0f6fc;
+      flex: 1;
+    }
+    header h1 span { color: #4c6ef5; }
+
+    /* ── Controls ────────────────────────────── */
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    button {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #c9d1d9;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    button:hover { background: #30363d; border-color: #484f58; }
+    button.primary { background: #4c6ef5; border-color: #4c6ef5; color: #fff; }
+    button.primary:hover { background: #3b5bdb; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #c9d1d9;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .speed-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #8b949e;
+    }
+    .speed-control input[type="range"] {
+      width: 80px;
+      accent-color: #4c6ef5;
+    }
+
+    /* Theme extraction */
+    .theme-extract {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .theme-extract input[type="text"] {
+      width: 220px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background: #0d1117;
+      color: #e1e4e8;
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .theme-extract input[type="text"]::placeholder {
+      color: #484f58;
+    }
+    .theme-extract input[type="text"]:focus {
+      outline: none;
+      border-color: #4c6ef5;
+      box-shadow: 0 0 0 2px rgba(76, 110, 245, 0.2);
+    }
+    #theme-status {
+      font-size: 11px;
+      white-space: nowrap;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Main Layout ────────────────────────── */
+    main {
+      flex: 1;
+      display: flex;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* ── Editor Pane ────────────────────────── */
+    .editor-pane {
+      width: 420px;
+      min-width: 320px;
+      border-right: 1px solid #21262d;
+      display: flex;
+      flex-direction: column;
+      background: #0d1117;
+    }
+    .editor-pane .pane-header {
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #8b949e;
+      border-bottom: 1px solid #21262d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .editor-pane textarea {
+      flex: 1;
+      background: #0d1117;
+      color: #e1e4e8;
+      border: none;
+      padding: 16px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+      tab-size: 2;
+    }
+    .editor-pane textarea::placeholder { color: #484f58; }
+
+    /* ── Canvas Pane ────────────────────────── */
+    .canvas-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #161b22;
+    }
+    .canvas-pane .pane-header {
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #8b949e;
+      border-bottom: 1px solid #21262d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .canvas-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow: auto;
+    }
+    canvas {
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    /* ── Stats Bar ──────────────────────────── */
+    .stats-bar {
+      padding: 8px 24px;
+      border-top: 1px solid #21262d;
+      background: #161b22;
+      display: flex;
+      gap: 24px;
+      font-size: 12px;
+      color: #8b949e;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .stat { display: flex; gap: 6px; }
+    .stat-label { color: #484f58; }
+    .stat-value { color: #58a6ff; }
+    .stat-value.warn { color: #d29922; }
+    .stat-value.good { color: #3fb950; }
+
+    /* ── Streaming indicator ─────────────────── */
+    .streaming-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+    .streaming-indicator .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3fb950;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .streaming-indicator.idle .dot { background: #484f58; animation: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── Debug panel ─────────────────────────── */
+    .debug-pane {
+      width: 320px;
+      min-width: 280px;
+      border-left: 1px solid #21262d;
+      display: none;
+      flex-direction: column;
+      background: #0d1117;
+      overflow: hidden;
+    }
+    .debug-pane.open { display: flex; }
+    .debug-pane .pane-header {
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #8b949e;
+      border-bottom: 1px solid #21262d;
+    }
+    .debug-content {
+      flex: 1;
+      overflow: auto;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #8b949e;
+      white-space: pre-wrap;
+    }
+    .debug-content .node-kind { color: #d2a8ff; }
+    .debug-content .node-id { color: #79c0ff; }
+    .debug-content .node-text { color: #a5d6ff; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <h1><span>Spatial</span> Markdown Engine</h1>
+    <div class="controls">
+      <select id="preset-select">
+        <option value="basic">Basic Slide</option>
+        <option value="grid">Auto Grid + Metrics</option>
+        <option value="columns">Columns Layout</option>
+        <option value="code">Code Block</option>
+        <option value="full" selected>Full Dashboard</option>
+        <option value="custom">Custom (editor)</option>
+      </select>
+      <div class="speed-control">
+        <label for="speed-range">Speed</label>
+        <input type="range" id="speed-range" min="1" max="100" value="30" />
+        <span id="speed-label">30 (3 chunk/frame)</span>
+      </div>
+      <button id="btn-theme">Toggle Theme</button>
+      <div class="theme-extract">
+        <input type="text" id="theme-url" placeholder="Paste website URL to extract theme…" />
+        <button id="btn-extract-theme" class="primary">Extract Theme</button>
+        <span id="theme-status"></span>
+      </div>
+      <button id="btn-stream" class="primary">Stream It</button>
+      <button id="btn-instant">Instant</button>
+      <button id="btn-clear">Clear</button>
+      <button id="btn-debug">Debug</button>
+    </div>
+    <div class="streaming-indicator idle" id="stream-status">
+      <div class="dot"></div>
+      <span>idle</span>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main>
+    <!-- Editor -->
+    <div class="editor-pane">
+      <div class="pane-header">
+        <span>Spatial Markdown</span>
+        <span id="char-count">0 chars</span>
+      </div>
+      <textarea id="editor" spellcheck="false" placeholder="Type Spatial Markdown here, or pick a preset..."></textarea>
+    </div>
+
+    <!-- Canvas Output -->
+    <div class="canvas-pane">
+      <div class="pane-header">
+        <span>Canvas Output</span>
+        <span id="render-mode">800 x 900</span>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="output-canvas" width="800" height="900"></canvas>
+      </div>
+    </div>
+
+    <!-- Debug Panel -->
+    <div class="debug-pane" id="debug-pane">
+      <div class="pane-header">AST Inspector</div>
+      <div class="debug-content" id="debug-content">Feed some Spatial Markdown to see the AST...</div>
+    </div>
+  </main>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-label">Tokens:</span>
+      <span class="stat-value" id="stat-tokens">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">AST Nodes:</span>
+      <span class="stat-value" id="stat-nodes">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Render Commands:</span>
+      <span class="stat-value" id="stat-commands">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Layout Time:</span>
+      <span class="stat-value" id="stat-layout-time">—</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Frame:</span>
+      <span class="stat-value" id="stat-frame">0</span>
+    </div>
+  </div>
+
+  <script type="module" src="./demo.ts"></script>
+</body>
+</html>
