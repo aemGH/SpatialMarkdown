@@ -1,16 +1,14 @@
-# Spatial Markdown DSL — Authoritative Specification
+# Spatial Markdown DSL — Specification
 
 **Status**: Approved  
-**Author**: Alex (Product Manager, Layer B)  
 **Version**: 1.0.0  
-**Last Updated**: 2026-04-14  
-**Stakeholders**: @software-architect (Layer A), @frontend-developer (Layer C), @backend-architect (Layer D), @qa-engineer (Layer E)
+**Last Updated**: 2026-04-14
 
 ---
 
 ## 0. Purpose & Scope
 
-This document is the **single source of truth** for the Spatial Markdown DSL — a custom markup language designed for LLM-generated spatial layouts. Every layer of the Pretext Spatial Engine (parser, geometry engine, renderer, bridge) MUST implement against this spec.
+This document is the **single source of truth** for the Spatial Markdown DSL — a custom markup language designed for LLM-generated spatial layouts. All engine layers (parser, geometry engine, renderer, bridge) implement against this spec.
 
 **What Spatial Markdown is:**
 A strict superset of Markdown that adds layout-aware container tags, content components, and rendering primitives. An LLM streams Spatial Markdown tokens; the engine parses them into an AST, calculates geometry using `@chenglou/pretext`, and renders the result at 60fps with zero layout shift.
@@ -18,13 +16,13 @@ A strict superset of Markdown that adds layout-aware container tags, content com
 **What Spatial Markdown is NOT:**
 - Not HTML. Tags share angle-bracket syntax but follow a closed, non-extensible taxonomy.
 - Not CSS. Layout is constraint-based and declarative, not cascading.
-- Not a general-purpose markup language. It is purpose-built for LLM output rendering.
+- Not a general-purpose markup language. Purpose-built for LLM output rendering.
 
 **Design Principles:**
 1. **Streaming-first.** Every design decision assumes tokens arrive one at a time from an LLM.
-2. **Geometry before pixels.** All spatial math happens via `@chenglou/pretext` before any renderer touches a canvas/DOM/SVG.
-3. **Zero layout shift.** Content that has been rendered MUST NOT move when subsequent tokens arrive. Achieved through reservation-based layout.
-4. **Strict typing.** The AST uses discriminated unions with no `any`. If the types can't express it, the DSL doesn't support it.
+2. **Geometry before pixels.** All spatial math via `@chenglou/pretext` before any renderer touches a canvas/DOM/SVG.
+3. **Zero layout shift.** Rendered content MUST NOT move when subsequent tokens arrive. Achieved through reservation-based layout.
+4. **Strict typing.** Discriminated unions, no `any`. If the types can't express it, the DSL doesn't support it.
 
 ---
 
@@ -802,294 +800,15 @@ type OverflowMode = 'clip' | 'scroll' | 'wrap' | 'visible'
 
 ---
 
-## 7. AST Type Definitions (Discriminated Unions)
+## 7. AST Type Reference
 
-```typescript
-// ─── Core Position & Measurement Types ───────────────────────────────
+The complete type definitions live in `src/types/ast.ts` (the source of truth). Key structural points:
 
-type Pixels = number
-
-interface Rect {
-  x: Pixels
-  y: Pixels
-  width: Pixels
-  height: Pixels
-}
-
-interface Insets {
-  top: Pixels
-  right: Pixels
-  bottom: Pixels
-  left: Pixels
-}
-
-// ─── Node Status ─────────────────────────────────────────────────────
-
-type NodeStatus = 'streaming' | 'closed'
-
-// ─── Base Node Fields ────────────────────────────────────────────────
-
-interface NodeBase {
-  id: string
-  status: NodeStatus
-  computedRect: Rect | null   // null until first layout pass
-  parentId: string | null
-}
-
-// ─── Layout Container Props ──────────────────────────────────────────
-
-interface SlideProps {
-  width: Pixels
-  height: Pixels
-  padding: Pixels
-  paddingX: Pixels | undefined
-  paddingY: Pixels | undefined
-  background: string
-  id: string
-}
-
-interface AutoGridProps {
-  minChildWidth: Pixels
-  gap: Pixels
-  gapX: Pixels | undefined
-  gapY: Pixels | undefined
-  columns: number | 'auto'
-  align: 'start' | 'center' | 'stretch'
-  padding: Pixels
-}
-
-interface StackProps {
-  direction: 'vertical' | 'horizontal'
-  gap: Pixels
-  padding: Pixels
-  paddingX: Pixels | undefined
-  paddingY: Pixels | undefined
-  align: 'start' | 'center' | 'end' | 'stretch'
-  justify: 'start' | 'center' | 'end' | 'space-between' | 'space-around'
-  wrap: boolean
-}
-
-interface ColumnsProps {
-  widths: string
-  gap: Pixels
-  padding: Pixels
-  valign: 'top' | 'center' | 'bottom' | 'stretch'
-}
-
-interface CanvasProps {
-  width: Pixels | 'fill'
-  height: Pixels | 'auto'
-  padding: Pixels
-  background: string
-  overflow: 'visible' | 'clip'
-}
-
-// ─── Content Component Props ─────────────────────────────────────────
-
-interface MetricCardProps {
-  label: string
-  value: string
-  delta: string | undefined
-  trend: 'up' | 'down' | 'flat' | undefined
-  sentiment: 'positive' | 'negative' | 'neutral'
-  footer: string | undefined
-  padding: Pixels
-  background: string
-  borderRadius: Pixels
-}
-
-interface CodeBlockProps {
-  language: string
-  title: string | undefined
-  showLineNumbers: boolean
-  startLine: number
-  highlight: string | undefined
-  maxHeight: Pixels | undefined
-  font: string
-  lineHeight: Pixels
-  padding: Pixels
-  background: string
-  wrap: boolean
-}
-
-interface DataTableProps {
-  columns: string
-  striped: boolean
-  compact: boolean
-  maxHeight: Pixels | undefined
-  headerBackground: string
-  font: string
-  headerFont: string
-  lineHeight: Pixels
-  cellPadding: Pixels
-  borderColor: string
-}
-
-interface ChartProps {
-  type: 'bar' | 'line' | 'pie' | 'area' | 'scatter'
-  title: string | undefined
-  width: Pixels | 'fill'
-  height: Pixels
-  padding: Pixels
-  colors: string
-  showLegend: boolean
-  showGrid: boolean
-  xLabel: string | undefined
-  yLabel: string | undefined
-  animate: boolean
-}
-
-interface QuoteProps {
-  cite: string | undefined
-  variant: 'default' | 'highlight' | 'pull'
-  borderColor: string
-  font: string
-  lineHeight: Pixels
-  padding: Pixels
-  paddingLeft: Pixels
-}
-
-interface CalloutProps {
-  type: 'info' | 'warning' | 'error' | 'success' | 'tip' | 'note'
-  title: string
-  icon: boolean
-  collapsible: boolean
-  collapsed: boolean
-  padding: Pixels
-  borderRadius: Pixels
-}
-
-// ─── Primitive Props ─────────────────────────────────────────────────
-
-interface TextProps {
-  font: string
-  lineHeight: Pixels
-  color: string
-  align: 'left' | 'center' | 'right'
-  whiteSpace: 'normal' | 'pre-wrap'
-  wordBreak: 'normal' | 'keep-all'
-  maxLines: number | undefined
-  opacity: number
-}
-
-interface HeadingProps {
-  level: 1 | 2 | 3 | 4 | 5 | 6
-  color: string
-  align: 'left' | 'center' | 'right'
-  marginBottom: Pixels
-}
-
-interface SpacerProps {
-  height: Pixels
-  width: Pixels
-}
-
-interface DividerProps {
-  direction: 'horizontal' | 'vertical'
-  thickness: Pixels
-  color: string
-  marginTop: Pixels
-  marginBottom: Pixels
-  indent: Pixels
-}
-
-interface ImageProps {
-  src: string
-  alt: string
-  width: Pixels | 'fill'
-  height: Pixels | 'auto'
-  aspectRatio: string
-  fit: 'cover' | 'contain' | 'fill'
-  borderRadius: Pixels
-  caption: string | undefined
-  captionFont: string
-}
-
-// ─── Text Buffer (for streaming) ─────────────────────────────────────
-
-interface TextBuffer {
-  raw: string                           // Accumulated raw text
-  prepared: PreparedTextWithSegments | null  // Cached pretext handle (invalidated on change)
-  lastPrepareLength: number             // Text length at last prepare() call
-}
-
-// ─── AST Node: Discriminated Union ───────────────────────────────────
-
-type SpatialNode =
-  // Layout Containers
-  | (NodeBase & { kind: 'slide';      props: SlideProps;      children: SpatialNode[] })
-  | (NodeBase & { kind: 'auto-grid';  props: AutoGridProps;   children: SpatialNode[] })
-  | (NodeBase & { kind: 'stack';      props: StackProps;      children: SpatialNode[] })
-  | (NodeBase & { kind: 'columns';    props: ColumnsProps;    children: SpatialNode[] })
-  | (NodeBase & { kind: 'canvas';     props: CanvasProps;     children: SpatialNode[] })
-  // Content Components
-  | (NodeBase & { kind: 'metric-card'; props: MetricCardProps; children: [] })
-  | (NodeBase & { kind: 'code-block';  props: CodeBlockProps;  children: []; textBuffer: TextBuffer })
-  | (NodeBase & { kind: 'data-table';  props: DataTableProps;  children: []; textBuffer: TextBuffer })
-  | (NodeBase & { kind: 'chart';       props: ChartProps;      children: []; textBuffer: TextBuffer })
-  | (NodeBase & { kind: 'quote';       props: QuoteProps;      children: SpatialNode[]; textBuffer: TextBuffer })
-  | (NodeBase & { kind: 'callout';     props: CalloutProps;    children: SpatialNode[]; textBuffer: TextBuffer })
-  // Primitives
-  | (NodeBase & { kind: 'text';     props: TextProps;     children: []; textBuffer: TextBuffer })
-  | (NodeBase & { kind: 'heading';  props: HeadingProps;  children: []; textBuffer: TextBuffer })
-  | (NodeBase & { kind: 'spacer';   props: SpacerProps;   children: [] })
-  | (NodeBase & { kind: 'divider';  props: DividerProps;  children: [] })
-  | (NodeBase & { kind: 'image';    props: ImageProps;    children: [] })
-
-// ─── Root Document ───────────────────────────────────────────────────
-
-interface SpatialDocument {
-  version: '1.0'
-  children: SpatialNode[]
-  nodeIndex: Map<string, SpatialNode>   // Fast lookup by id
-  openStack: SpatialNode[]               // Stack of currently-streaming nodes
-}
-
-// ─── Layout Constraint (passed parent → child) ──────────────────────
-
-interface LayoutConstraint {
-  maxWidth: Pixels
-  maxHeight: Pixels         // Infinity if unconstrained
-  availableWidth: Pixels    // Width remaining after preceding siblings
-  availableHeight: Pixels   // Height remaining after preceding siblings
-}
-
-// ─── Computed Layout Result (attached to each node) ──────────────────
-
-interface ComputedLayout {
-  rect: Rect                // Final position and size
-  insets: Insets             // Resolved padding
-  contentRect: Rect          // Inner content area (rect minus insets)
-  overflow: 'clip' | 'scroll' | 'wrap' | 'visible'
-  childLayouts: ComputedLayout[] // Parallel array to children
-}
-
-// ─── Kind Helpers ────────────────────────────────────────────────────
-
-type LayoutContainerKind = 'slide' | 'auto-grid' | 'stack' | 'columns' | 'canvas'
-type ContentComponentKind = 'metric-card' | 'code-block' | 'data-table' | 'chart' | 'quote' | 'callout'
-type PrimitiveKind = 'text' | 'heading' | 'spacer' | 'divider' | 'image'
-
-type NodeKind = LayoutContainerKind | ContentComponentKind | PrimitiveKind
-
-// ─── Type Guards ─────────────────────────────────────────────────────
-
-function isLayoutContainer(node: SpatialNode): node is Extract<SpatialNode, { kind: LayoutContainerKind }> {
-  return ['slide', 'auto-grid', 'stack', 'columns', 'canvas'].includes(node.kind)
-}
-
-function isContentComponent(node: SpatialNode): node is Extract<SpatialNode, { kind: ContentComponentKind }> {
-  return ['metric-card', 'code-block', 'data-table', 'chart', 'quote', 'callout'].includes(node.kind)
-}
-
-function isPrimitive(node: SpatialNode): node is Extract<SpatialNode, { kind: PrimitiveKind }> {
-  return ['text', 'heading', 'spacer', 'divider', 'image'].includes(node.kind)
-}
-
-function hasTextBuffer(node: SpatialNode): node is Extract<SpatialNode, { textBuffer: TextBuffer }> {
-  return 'textBuffer' in node
-}
-```
+- **`SpatialNode`**: Discriminated union with `kind` field. 16 variants: 5 layout containers, 6 content components, 5 primitives.
+- **`NodeBase`**: Common fields: `id` (NodeId), `status` ('streaming' | 'closed'), `dirty` (DirtyFlags), `computedRect`, `parentId`, `sourceOffset`.
+- **`TextBuffer`**: `{ raw: string, lastPrepareLength: number }` — attached to nodes that accept text content.
+- **`SpatialDocument`**: `{ version: '1.0', children: SpatialNode[], nodeIndex: Map<NodeId, SpatialNode>, openStack: SpatialNode[] }`.
+- **Node kind → AST kind mapping**: `<Slide>` → `'slide'`, `<AutoGrid>` → `'auto-grid'`, `<Stack>` → `'stack'`, `<Columns>` → `'columns'`, `<Canvas>` → `'canvas'`, `<MetricCard>` → `'metric-card'`, `<CodeBlock>` → `'code-block'`, `<DataTable>` → `'data-table'`, `<Chart>` → `'chart'`, `<Quote>` → `'quote'`, `<Callout>` → `'callout'`, `<Text>` → `'text'`, `<Heading>` → `'heading'`, `<Spacer>` → `'spacer'`, `<Divider>` → `'divider'`, `<Image>` → `'image'`.
 
 ---
 
@@ -1220,18 +939,7 @@ Raw Markdown text (outside any tag) is parsed using standard CommonMark rules an
 
 ### 9.1 Inline Formatting
 
-Inline formatting (`**bold**`, `*italic*`, `` `code` ``, `~~strikethrough~~`) does NOT create new AST nodes. Instead, it creates **text segments** within a `<Text>` node's buffer. Each segment carries its own font declaration, and the text is measured by concatenating segments and using `prepareWithSegments()` for the combined string, with font changes handled at render time.
-
-```typescript
-interface TextSegment {
-  text: string
-  font: string          // Override font for this segment
-  color: string         // Override color (for inline code background, etc.)
-  decoration: 'none' | 'line-through' | 'underline'
-}
-```
-
-The `<Text>` node's `textBuffer` holds the full concatenated string for measurement purposes. The segment boundaries are tracked separately for rendering.
+Inline formatting (`**bold**`, `*italic*`, `` `code` ``, `~~strikethrough~~`) does NOT create new AST nodes. Instead, it creates **text segments** within a `<Text>` node's buffer. Each segment carries its own font declaration. The `textBuffer` holds the full concatenated string for measurement; segment boundaries are tracked separately for rendering.
 
 ---
 
@@ -1257,213 +965,9 @@ How each layout operation maps to specific `@chenglou/pretext` API calls:
 
 ---
 
-## 11. Example DSL Snippets
+## 11. Parser Error Handling
 
-### 11.1 Presentation Slide Deck (3 Slides)
-
-```xml
-<Slide background="#0F172A" padding={64}>
-  <Heading level={1} color="#F8FAFC" align="center">
-    Q4 2026 Product Strategy
-  </Heading>
-  <Spacer height={16} />
-  <Text font='"18px Inter"' lineHeight={28} color="#94A3B8" align="center">
-    From feature factory to outcome engine — our path to $10M ARR
-  </Text>
-  <Spacer height={48} />
-  <Columns widths="1fr 1fr 1fr" gap={32}>
-    <MetricCard label="ARR" value="$7.2M" delta="+34% YoY" trend="up" sentiment="positive" background="#1E293B" />
-    <MetricCard label="NPS" value="62" delta="+8 pts" trend="up" sentiment="positive" background="#1E293B" />
-    <MetricCard label="Churn" value="2.1%" delta="-0.4%" trend="down" sentiment="positive" background="#1E293B" />
-  </Columns>
-</Slide>
-
-<Slide padding={48}>
-  <Heading level={2}>The Problem We're Solving</Heading>
-  <Spacer height={24} />
-  <Columns widths="1fr 1fr" gap={40}>
-    <Stack gap={16}>
-      <Callout type="error" title="Current State">
-        67% of users drop off before completing setup.
-        Average time-to-value is 14 days — 3x industry benchmark.
-      </Callout>
-      <Quote cite="Customer Interview #42, Enterprise Segment">
-        I signed up excited, then spent two weeks figuring out how to
-        connect my first data source. By then I'd already found a workaround.
-      </Quote>
-    </Stack>
-    <Stack gap={16}>
-      <Callout type="success" title="Target State">
-        First value delivered within 30 minutes.
-        Guided setup with smart defaults reduces decisions from 23 to 5.
-      </Callout>
-      <Chart type="bar" title="Setup Completion by Step" height={200}>
-        Step,Account,Connect Data,First Query,Dashboard,Share
-        Current,95%,58%,42%,31%,22%
-        Target,98%,85%,78%,72%,65%
-      </Chart>
-    </Stack>
-  </Columns>
-</Slide>
-
-<Slide padding={48}>
-  <Heading level={2}>Roadmap: Now / Next / Later</Heading>
-  <Spacer height={24} />
-  <Stack gap={20}>
-    <Stack direction="horizontal" gap={12} align="center">
-      <Text font='"700 14px Inter"' color="#37B24D">NOW</Text>
-      <Divider direction="vertical" thickness={2} color="#37B24D" marginTop={0} marginBottom={0} />
-      <Text>Guided onboarding wizard (ships Week 3)</Text>
-    </Stack>
-    <Stack direction="horizontal" gap={12} align="center">
-      <Text font='"700 14px Inter"' color="#F59F00">NEXT</Text>
-      <Divider direction="vertical" thickness={2} color="#F59F00" marginTop={0} marginBottom={0} />
-      <Text>Smart defaults engine — auto-configures based on data source type</Text>
-    </Stack>
-    <Stack direction="horizontal" gap={12} align="center">
-      <Text font='"700 14px Inter"' color="#4C6EF5">LATER</Text>
-      <Divider direction="vertical" thickness={2} color="#4C6EF5" marginTop={0} marginBottom={0} />
-      <Text>Template marketplace — pre-built dashboards for common use cases</Text>
-    </Stack>
-  </Stack>
-  <Spacer height={32} />
-  <DataTable columns="Initiative|Owner|Confidence:center|ETA:center" compact={true}>
-    Onboarding Wizard|@sarah|High|Week 3
-    Smart Defaults|@marcus|Medium|Q1 '27
-    Template Marketplace|TBD|Low|Q2 '27
-  </DataTable>
-</Slide>
-```
-
-### 11.2 Market Analysis Dashboard
-
-```xml
-<Stack gap={24} padding={24}>
-  <Heading level={2}>SaaS Market Intelligence — April 2026</Heading>
-  <Divider />
-
-  <AutoGrid minChildWidth={220} gap={16}>
-    <MetricCard label="Total Addressable Market" value="$284B" delta="+18% YoY" trend="up" sentiment="positive" />
-    <MetricCard label="Our Market Share" value="0.34%" delta="+0.08%" trend="up" sentiment="positive" />
-    <MetricCard label="Top Competitor Share" value="4.2%" delta="+0.3%" trend="up" sentiment="negative" />
-    <MetricCard label="Category Growth Rate" value="23%" delta="-2% vs Q3" trend="down" sentiment="neutral" />
-    <MetricCard label="Win Rate (Enterprise)" value="38%" delta="+5%" trend="up" sentiment="positive" />
-    <MetricCard label="Avg Deal Cycle" value="47 days" delta="-8 days" trend="down" sentiment="positive" />
-  </AutoGrid>
-
-  <Columns widths="2fr 1fr" gap={24}>
-    <Chart type="line" title="Revenue Trajectory vs. Competitors" height={320}>
-      Quarter,Q1 '25,Q2 '25,Q3 '25,Q4 '25,Q1 '26
-      Us,1200,1800,2400,3600,4800
-      Competitor A,8500,9200,9800,10500,11200
-      Competitor B,3200,3100,3400,3800,4100
-      Competitor C,2100,2400,2200,2500,2800
-    </Chart>
-    <Stack gap={16}>
-      <Heading level={3}>Key Insights</Heading>
-      <Callout type="tip" title="Growth Inflection">
-        We are the fastest-growing vendor in the category at +34% QoQ.
-        At current trajectory, we overtake Competitor B by Q3 '26.
-      </Callout>
-      <Callout type="warning" title="Enterprise Gap">
-        Competitor A's enterprise penetration (62%) dwarfs ours (14%).
-        Their SOC2 + HIPAA certifications are table stakes we lack.
-      </Callout>
-    </Stack>
-  </Columns>
-
-  <Heading level={3}>Competitive Feature Matrix</Heading>
-  <DataTable columns="Feature:left|Us:center|Comp A:center|Comp B:center|Comp C:center">
-    Real-time Streaming|✅|❌|✅|❌
-    Zero Layout Shift|✅|❌|❌|❌
-    Self-hosted Option|✅|✅|❌|✅
-    SOC2 Certified|🔄 In Progress|✅|✅|❌
-    HIPAA Compliant|❌|✅|✅|❌
-    Sub-100ms TTFB|✅|❌|✅|✅
-    Custom Theming|✅|✅|❌|✅
-  </DataTable>
-</Stack>
-```
-
-### 11.3 Code Comparison View (Side-by-Side)
-
-```xml
-<Stack gap={16} padding={16}>
-  <Heading level={2}>Migration Guide: v1 → v2 API</Heading>
-  <Text color="#868E96">
-    The v2 API replaces imperative DOM measurement with declarative pretext calls.
-    All layout calculations now happen before any rendering.
-  </Text>
-
-  <Columns widths="1fr 1fr" gap={16}>
-    <Stack gap={8}>
-      <Text font='"600 13px Inter"' color="#F03E3E">BEFORE (v1 — DOM-based)</Text>
-      <CodeBlock language="typescript" title="layout-v1.ts" highlight="4,5,6,12">
-function measureCard(el: HTMLElement): Size {
-  // ❌ Triggers browser reflow on every call
-  document.body.appendChild(el);
-  const width = el.offsetWidth;
-  const height = el.getBoundingClientRect().height;
-  document.body.removeChild(el);
-
-  return { width, height };
-}
-
-function layoutGrid(cards: HTMLElement[], containerWidth: number) {
-  // ❌ N reflows for N cards — O(n) forced layouts
-  const sizes = cards.map(c => measureCard(c));
-  const columns = Math.floor(containerWidth / 300);
-  // ... imperative position calculation
-}
-      </CodeBlock>
-    </Stack>
-    <Stack gap={8}>
-      <Text font='"600 13px Inter"' color="#37B24D">AFTER (v2 — Pretext)</Text>
-      <CodeBlock language="typescript" title="layout-v2.ts" highlight="3,4,5,12,13">
-import { prepare, layout } from '@chenglou/pretext';
-
-function measureCard(text: string, font: string, maxWidth: number): Size {
-  const prepared = prepare(text, font);
-  const { height } = layout(prepared, maxWidth, 20);
-  // ✅ Pure arithmetic — zero DOM access
-  return { width: maxWidth, height: height + CARD_PADDING };
-}
-
-function layoutGrid(cards: CardData[], containerWidth: number) {
-  const columns = Math.floor(containerWidth / 300);
-  // ✅ All measurements are pure functions — O(n) but no reflows
-  const sizes = cards.map(c => measureCard(c.text, c.font, cellWidth));
-  // ... pure coordinate calculation
-}
-      </CodeBlock>
-    </Stack>
-  </Columns>
-
-  <Callout type="info" title="Performance Impact">
-    Benchmarks on a 50-card grid: v1 takes 340ms (DOM reflow per card).
-    v2 takes 0.8ms (pure arithmetic). That's a 425x improvement.
-  </Callout>
-</Stack>
-```
-
----
-
-## 12. Parser Error Handling
-
-### 12.1 Error Categories
-
-```typescript
-type ParseError =
-  | { code: 'UNKNOWN_TAG';       tag: string; position: number; severity: 'warning' }
-  | { code: 'INVALID_NESTING';   parent: NodeKind; child: NodeKind; position: number; severity: 'warning' }
-  | { code: 'MISSING_ATTRIBUTE'; tag: NodeKind; attribute: string; position: number; severity: 'error' }
-  | { code: 'INVALID_ATTRIBUTE'; tag: NodeKind; attribute: string; value: string; expected: string; position: number; severity: 'warning' }
-  | { code: 'UNCLOSED_TAG';      tag: NodeKind; openPosition: number; severity: 'warning' }
-  | { code: 'ORPHAN_CLOSE_TAG';  tag: string; position: number; severity: 'warning' }
-  | { code: 'COLUMN_MISMATCH';   expected: number; received: number; position: number; severity: 'warning' }
-```
-
-### 12.2 Recovery Strategies
+### Recovery Strategies
 
 The parser MUST be resilient. LLMs make mistakes. The parser never crashes — it degrades gracefully.
 
@@ -1480,9 +984,9 @@ The parser MUST be resilient. LLMs make mistakes. The parser never crashes — i
 
 ---
 
-## 13. Performance Budgets
+## 12. Performance Budgets
 
-These are hard requirements. The QA layer (Layer E) MUST enforce these in benchmarks.
+These are hard requirements, enforced via benchmarks in CI.
 
 | Operation | Budget | Measurement Method |
 |-----------|--------|-------------------|
@@ -1498,9 +1002,9 @@ These are hard requirements. The QA layer (Layer E) MUST enforce these in benchm
 
 ---
 
-## 14. Versioning & Extension
+## 13. Versioning & Extension
 
-### 14.1 Spec Version
+### 13.1 Spec Version
 
 This spec is version `1.0`. The version is encoded in the `SpatialDocument.version` field and MAY be declared at the top of a Spatial Markdown document:
 
@@ -1511,11 +1015,11 @@ This spec is version `1.0`. The version is encoded in the `SpatialDocument.versi
 </Slide>
 ```
 
-### 14.2 Extension Policy
+### 13.2 Extension Policy
 
 **Adding new tags:** New tags MUST go through a spec amendment process:
 1. Propose the tag with full specification (attributes, layout behavior, streaming behavior).
-2. Review by Layer A (architecture), Layer B (spec), Layer C (renderer feasibility).
+2. Architecture review, spec review, and renderer feasibility check.
 3. Approved tags are added to the next minor version (e.g., `1.1`).
 
 **Adding new attributes to existing tags:** Backwards-compatible. New attributes MUST have defaults that preserve existing behavior. Minor version bump.

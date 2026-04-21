@@ -1,31 +1,20 @@
 # @spatial-markdown/engine
 
-**A high-performance layout engine for LLM streaming output.**
-Render structured, pixel-perfect documents in real time at 60fps with zero
-layout shift — as tokens arrive, one character at a time.
+A high-performance layout engine for LLM streaming output. Renders structured,
+pixel-perfect documents in real time at 60fps with zero layout shift.
 
 ```
-LLM stream → Spatial Markdown → Pretext-measured geometry → Canvas / SVG / React
+LLM stream → Spatial Markdown DSL → Pretext measurement → Canvas / SVG / React
 ```
 
 Built on [`@chenglou/pretext`](https://github.com/chenglou/pretext) for
-DOM-less text measurement. Written in strict TypeScript. Zero `any`.
+DOM-less text measurement. Strict TypeScript, zero `any`.
+
+All text geometry is calculated off-DOM via pretext before rendering. The browser
+never computes layout, so incremental LLM output never shifts a pixel already on
+screen.
 
 ---
-
-## Why this exists
-
-Every current "LLM writes UI" tool (Claude Artifacts, v0, Gemini Canvas, Gamma,
-Tome) streams tokens into a DOM and eats reflows. When the LLM says
-`# Hello` the browser computes layout, then when it says `World` the browser
-computes layout *again*, and everything jumps. On canvas, in real time, at
-60fps, that's unacceptable.
-
-This engine reads LLM tokens, measures every glyph *off-DOM* via pretext,
-calculates absolute geometry in pure TypeScript, and emits renderer-agnostic
-draw commands. The browser never computes layout because the browser was
-never asked to. Result: **incremental LLM output that never shifts a pixel
-already on screen.**
 
 ## Quickstart
 
@@ -70,14 +59,14 @@ The Gemini demo pipes `streamGenerateContent` token-by-token into the
 engine and renders to canvas in real time. Great for feeling what a
 "website-as-a-response" actually looks like.
 
-## Architecture (30-second version)
+## Architecture
 
-| Layer | Owner | What it does |
+| Layer | Source | Role |
 |---|---|---|
-| **A. Engine** (`src/engine`) | Layout math | Pretext measurement, constraint solver, geometry calculator. Pure TS, no DOM. |
-| **B. Parser** (`src/parser`) | DSL | Streaming tokenizer (FSM) → incremental AST builder → transform passes. |
-| **C. Renderer** (`src/renderer`) | Pixels | Canvas 2D, SVG, React — all consume the same `RenderCommand[]`. |
-| **D. Bridge** (`src/bridge`) | I/O | WebSocket + SSE adapters, ring buffer, backpressure, Python SDK types. |
+| **Engine** | `src/engine/` | Pretext measurement, constraint solver, geometry calculator. Pure TS, no DOM. |
+| **Parser** | `src/parser/` | Streaming tokenizer (FSM) → incremental AST builder → transform passes. |
+| **Renderer** | `src/renderer/` | Canvas 2D, SVG, React — all consume the same `RenderCommand[]`. |
+| **Bridge** | `src/bridge/` | WebSocket + SSE adapters, ring buffer, backpressure, Python SDK types. |
 
 Full details in [`specs/architecture.md`](./specs/architecture.md) and
 [`specs/spatial-spec.md`](./specs/spatial-spec.md).
@@ -165,5 +154,4 @@ MIT (see `LICENSE`).
 
 ## Credits
 
-Core text measurement by [@chenglou/pretext](https://www.npmjs.com/package/@chenglou/pretext).
-DSL + engine + renderers: this repository.
+Core text measurement: [`@chenglou/pretext`](https://www.npmjs.com/package/@chenglou/pretext).

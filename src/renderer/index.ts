@@ -1,8 +1,7 @@
 /**
  * @spatial/renderer — Rendering Layer
  *
- * Layer C: Consumes LayoutBox coordinates. No manual CSS positioning.
- * Owner: @frontend-developer
+ * Consumes LayoutBox coordinates. No manual CSS positioning.
  */
 
 export { buildRenderCommands } from './command-builder';

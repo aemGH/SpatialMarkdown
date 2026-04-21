@@ -1,5 +1,5 @@
 /**
- * Incremental AST Builder — the core of Layer B.
+ * Incremental AST Builder — the core of the parser.
  *
  * Converts a stream of SpatialToken[] batches into a mutable SpatialDocument,
  * emitting ASTDelta events for every mutation. The builder maintains an

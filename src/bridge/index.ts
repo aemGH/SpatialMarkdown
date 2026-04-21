@@ -1,14 +1,8 @@
 /**
- * @spatial/bridge — Integration Layer
+ * @spatial/bridge — Streaming integration layer
  *
- * Layer D: Python ↔ TypeScript streaming bridge.
- * Owner: @backend-architect
- *
- * Provides:
- * - Ring buffer + backpressure for flow control
- * - SSE + WebSocket adapters for transport
- * - Protocol serialization/deserialization
- * - Python SDK type contract
+ * Ring buffer + backpressure, SSE + WebSocket adapters,
+ * protocol serialization, Python SDK type contract.
  */
 
 export * from './buffer/index';

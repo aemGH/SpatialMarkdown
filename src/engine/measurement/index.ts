@@ -1,7 +1,7 @@
 /**
  * Pretext Measurement — Cache + batch measure orchestration.
  *
- * Public surface for the measurement layer (Layer A).
+ * Public surface for the measurement module.
  *
  * @module @spatial/engine/measurement
  */

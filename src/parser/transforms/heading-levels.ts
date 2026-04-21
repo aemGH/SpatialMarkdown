@@ -22,7 +22,7 @@
  *
  * ## Consequence
  * Visual heading sizing based on nesting depth should be handled by the
- * **constraint solver** (Layer A) or the **renderer** (Layer C), not by
+ * **constraint solver** or the **renderer**, not by
  * an AST transform. The constraint solver already receives the full tree
  * context and can compute effective visual sizes from (level + depth).
  *

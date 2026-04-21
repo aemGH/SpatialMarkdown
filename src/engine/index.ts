@@ -1,8 +1,7 @@
 /**
- * @spatial/engine — Layout & Geometry Layer
+ * @spatial/engine — Layout & Geometry
  *
- * Layer A: Pure TypeScript. No DOM references.
- * Owner: @software-architect
+ * Pure TypeScript. No DOM references.
  */
 
 export * from './constraints/index';
