@@ -135,6 +135,13 @@ const $ = <T extends HTMLElement>(id: string): T =>
 
 const editor = $<HTMLTextAreaElement>('editor');
 const canvas = $<HTMLCanvasElement>('output-canvas');
+const canvasWrap = canvas.parentElement as HTMLDivElement;
+const canvasWidthLabel = $<HTMLDivElement>('canvas-width-label');
+const canvasResizeLeft = $<HTMLDivElement>('canvas-resize-left');
+const canvasResizeRight = $<HTMLDivElement>('canvas-resize-right');
+const panelResizeHandle = $<HTMLDivElement>('panel-resize-handle');
+const editorPane = $<HTMLDivElement>('editor-pane');
+
 const presetSelect = $<HTMLSelectElement>('preset-select');
 const speedRange = $<HTMLInputElement>('speed-range');
 const speedLabel = $<HTMLSpanElement>('speed-label');
@@ -182,8 +189,8 @@ let totalTokens = 0;
 let isDarkTheme = false;
 let customTheme: ThemeConfig | null = null; // Theme extracted from a URL
 
-const CANVAS_W = 800;
-const CANVAS_H = 900;
+let canvasW = 800;
+let currentCanvasH = 900;
 
 // ─── Pipeline Setup ──────────────────────────────────────────────────
 
@@ -206,7 +213,7 @@ function resetPipeline(): void {
   // Create fresh instances
   pipeline = createPipeline({ theme: activeTheme });
   canvasRenderer = createCanvasRenderer(canvas);
-  canvasRenderer.resize(CANVAS_W, CANVAS_H);
+  canvasRenderer.resize(canvasW, currentCanvasH);
 
   // Wire pipeline output → canvas
   pipeline.onRender((commands: ReadonlyArray<RenderCommand>) => {
@@ -223,7 +230,7 @@ function resetPipeline(): void {
     }
   });
 
-  pipeline.resize(CANVAS_W, CANVAS_H);
+  pipeline.resize(canvasW, currentCanvasH);
 }
 
 // ─── Stats ───────────────────────────────────────────────────────────
@@ -584,6 +591,88 @@ editor.addEventListener('input', () => {
       }
     }, 500);
   }
+});
+
+// ─── Canvas Width Resize (drag either edge of canvas) ────────────────
+
+function applyCanvasWidth(newW: number): void {
+  newW = Math.max(380, Math.min(newW, 1600));
+  if (newW === canvasW) return;
+  canvasW = newW;
+
+  if (pipeline && canvasRenderer) {
+    canvasRenderer.resize(canvasW, currentCanvasH);
+    pipeline.resize(canvasW, currentCanvasH);
+  }
+
+  renderMode.textContent = `${canvasW} x ${currentCanvasH}`;
+  canvasWidthLabel.textContent = `${canvasW}px`;
+  
+  // Re-render current content
+  const text = editor.value.trim();
+  if (text.length > 0) {
+    feedInstant(text);
+  }
+}
+
+function setupResizeHandle(handle: HTMLDivElement, side: 'left' | 'right'): void {
+  handle.addEventListener('mousedown', (e: MouseEvent) => {
+    e.preventDefault();
+    handle.classList.add('dragging');
+    canvasWidthLabel.classList.add('visible');
+    document.body.classList.add('resizing-canvas');
+
+    const startX = e.clientX;
+    const startW = canvasW;
+
+    const onMouseMove = (ev: MouseEvent) => {
+      const deltaX = ev.clientX - startX;
+      // Since the canvas is centered (justify-content: center), dragging one
+      // edge by N pixels requires increasing the width by 2N pixels to keep
+      // that edge under the cursor.
+      const newW = side === 'right'
+        ? startW + deltaX * 2
+        : startW - deltaX * 2;
+      applyCanvasWidth(newW);
+    };
+
+    const onMouseUp = () => {
+      handle.classList.remove('dragging');
+      canvasWidthLabel.classList.remove('visible');
+      document.body.classList.remove('resizing-canvas');
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+}
+
+setupResizeHandle(canvasResizeRight, 'right');
+setupResizeHandle(canvasResizeLeft, 'left');
+
+// ─── Panel Resize (drag divider between left panel and canvas) ───────
+
+panelResizeHandle.addEventListener('mousedown', (e: MouseEvent) => {
+  e.preventDefault();
+  panelResizeHandle.classList.add('dragging');
+  document.body.classList.add('resizing-panel');
+
+  const onMouseMove = (ev: MouseEvent) => {
+    const newWidth = Math.max(320, Math.min(ev.clientX, window.innerWidth * 0.5));
+    editorPane.style.width = `${newWidth}px`;
+  };
+
+  const onMouseUp = () => {
+    panelResizeHandle.classList.remove('dragging');
+    document.body.classList.remove('resizing-panel');
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  };
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
 });
 
 // ─── Init ────────────────────────────────────────────────────────────

@@ -35,8 +35,8 @@ export { defaultConfig, mergeConfig } from './config';
 export type { EngineConfig } from './config';
 
 // Pipeline (public API)
-export { createPipeline } from './pipeline';
-export type { SpatialPipeline } from './pipeline';
+export { createPipeline, render } from './pipeline';
+export type { SpatialPipeline, RenderOptions } from './pipeline';
 
 // Theme Extraction (re-export for convenience)
 export { extractThemeFromURL, extractThemeFromHTML, mapExtractedTheme } from './theme/index';

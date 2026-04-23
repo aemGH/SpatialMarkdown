@@ -355,13 +355,13 @@
     .canvas-resize-handle {
       position: absolute;
       top: 0;
-      width: 10px;
+      width: 24px;
       height: 100%;
       cursor: ew-resize;
       z-index: 20;
     }
-    .canvas-resize-handle.right { right: -5px; }
-    .canvas-resize-handle.left { left: -5px; }
+    .canvas-resize-handle.right { right: -12px; }
+    .canvas-resize-handle.left { left: -12px; }
 
     .canvas-resize-handle::after {
       content: '';
@@ -375,8 +375,8 @@
       opacity: 0;
       transition: opacity 0.2s, background 0.2s;
     }
-    .canvas-resize-handle.right::after { right: 3px; }
-    .canvas-resize-handle.left::after { left: 3px; }
+    .canvas-resize-handle.right::after { right: 8px; }
+    .canvas-resize-handle.left::after { left: 8px; }
 
     .canvas-resize-handle:hover::after,
     .canvas-resize-handle.dragging::after {

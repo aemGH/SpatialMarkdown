@@ -139,3 +139,122 @@ export const darkTheme: ThemeConfig = {
   spacing: defaultTheme.spacing,
   composition: defaultTheme.composition,
 };
+
+/** High-contrast theme for accessibility-sensitive contexts. */
+export const highContrastTheme: ThemeConfig = {
+  fonts: defaultTheme.fonts,
+  lineHeights: defaultTheme.lineHeights,
+  colors: {
+    text: '#000000',
+    textSecondary: '#333333',
+    background: '#FFFFFF',
+    surface: '#F0F0F0',
+    border: '#000000',
+    accent: '#0000CC',
+    success: '#006600',
+    warning: '#CC6600',
+    error: '#CC0000',
+    info: '#0000CC',
+  },
+  spacing: defaultTheme.spacing,
+  composition: defaultTheme.composition,
+};
+
+/** Warm neutral theme — earthy tones, softer feel. */
+export const warmTheme: ThemeConfig = {
+  fonts: {
+    body: font('15px "Georgia", serif'),
+    heading: font('700 26px "Georgia", serif'),
+    h1: font('700 42px "Georgia", serif'),
+    h2: font('700 24px "Georgia", serif'),
+    h3: font('600 20px "Georgia", serif'),
+    mono: font('14px "Fira Code", monospace'),
+    caption: font('600 12px "Georgia", serif'),
+  },
+  lineHeights: {
+    body: px(24),
+    heading: px(34),
+    display: px(50),
+    mono: px(20),
+    caption: px(16),
+  },
+  colors: {
+    text: '#3D2C1E',
+    textSecondary: '#7A6A5B',
+    background: '#FDF8F0',
+    surface: '#F5EDE0',
+    border: '#D6C9B6',
+    accent: '#B85C38',
+    success: '#4E8B3A',
+    warning: '#C68E17',
+    error: '#A63D40',
+    info: '#4A6FA5',
+  },
+  spacing: defaultTheme.spacing,
+  composition: defaultTheme.composition,
+};
+
+// ─── Theme Utilities ─────────────────────────────────────────────────
+
+/** Deep-partial type for ThemeConfig overrides. */
+export type ThemeOverrides = {
+  readonly fonts?: Partial<ThemeConfig['fonts']>;
+  readonly lineHeights?: Partial<ThemeConfig['lineHeights']>;
+  readonly colors?: Partial<ThemeConfig['colors']>;
+  readonly spacing?: Partial<ThemeConfig['spacing']>;
+  readonly composition?: {
+    readonly prose?: Partial<ThemeConfig['composition']['prose']>;
+    readonly heading?: Partial<ThemeConfig['composition']['heading']>;
+  };
+};
+
+/**
+ * Create a new theme by deep-merging overrides onto a base theme.
+ * Unlike Object.assign or spread, this merges nested objects correctly
+ * so you can override just `colors.accent` without wiping other colors.
+ *
+ * @param overrides - Partial theme values to apply.
+ * @param base      - Base theme to merge onto. Default: defaultTheme.
+ * @returns A complete ThemeConfig with overrides applied.
+ *
+ * @example
+ * ```ts
+ * const brandTheme = createTheme({
+ *   colors: { accent: '#FF6600', info: '#FF6600' },
+ *   fonts: { body: font('15px "Helvetica Neue", sans-serif') },
+ * });
+ * ```
+ */
+export function createTheme(
+  overrides: ThemeOverrides,
+  base: ThemeConfig = defaultTheme,
+): ThemeConfig {
+  return {
+    fonts: {
+      ...base.fonts,
+      ...overrides.fonts,
+    },
+    lineHeights: {
+      ...base.lineHeights,
+      ...overrides.lineHeights,
+    },
+    colors: {
+      ...base.colors,
+      ...overrides.colors,
+    },
+    spacing: {
+      ...base.spacing,
+      ...overrides.spacing,
+    },
+    composition: {
+      prose: {
+        ...base.composition.prose,
+        ...overrides.composition?.prose,
+      },
+      heading: {
+        ...base.composition.heading,
+        ...overrides.composition?.heading,
+      },
+    },
+  };
+}

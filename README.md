@@ -1,18 +1,18 @@
 # @spatial-markdown/engine
 
-A high-performance layout engine for LLM streaming output. Renders structured,
-pixel-perfect documents in real time at 60fps with zero layout shift.
+A high-performance, zero-reflow layout engine for structured documents. Renders
+pixel-perfect Canvas, SVG, or React output at 60fps from a simple tag vocabulary.
 
 ```
-LLM stream → Spatial Markdown DSL → Pretext measurement → Canvas / SVG / React
+Tag vocabulary → AST → Pretext measurement → Geometry → Canvas / SVG / React
 ```
 
-Built on [`@chenglou/pretext`](https://github.com/chenglou/pretext) for
-DOM-less text measurement. Strict TypeScript, zero `any`.
+Built on [`@chenglou/pretext`](https://github.com/chenglou/pretext) for DOM-less
+text measurement. All geometry is calculated off-DOM before rendering, so the
+browser never thrashes layout — and incremental or streamed content never shifts
+a pixel already on screen.
 
-All text geometry is calculated off-DOM via pretext before rendering. The browser
-never computes layout, so incremental LLM output never shifts a pixel already on
-screen.
+Strict TypeScript. Zero `any`. ESM + CJS + `.d.ts` for every subpath.
 
 ---
 
@@ -22,42 +22,70 @@ screen.
 npm install @spatial-markdown/engine @chenglou/pretext
 ```
 
+The simplest path is the synchronous `render()` one-liner — give it markup and
+a viewport, get back a `RenderCommand[]` that any renderer can draw.
+
 ```ts
-import { createPipeline } from '@spatial-markdown/engine';
+import { render } from '@spatial-markdown/engine';
 import { createCanvasRenderer } from '@spatial-markdown/engine/canvas';
 
-const canvas = document.querySelector('canvas')!;
-const renderer = createCanvasRenderer(canvas);
-const pipeline = createPipeline();
-
-pipeline.onRender((commands) => renderer.render(commands));
-
-pipeline.feed(`
+const commands = render(`
   <Slide>
     <Heading level={1}>Hello, Spatial Markdown!</Heading>
-    The engine measures text via pretext — zero reflow.
     <AutoGrid minChildWidth={180} gap={16}>
       <MetricCard label="Reflows" value="0" sentiment="positive" />
       <MetricCard label="FPS" value="60" sentiment="positive" />
     </AutoGrid>
   </Slide>
-`);
+`, { width: 800, height: 600 });
+
+const renderer = createCanvasRenderer(document.querySelector('canvas')!);
+renderer.render(commands);
+```
+
+That's the whole hello-world. No pipelines, no async, no subscribers — just
+`markup + viewport → commands`. Use this for dashboards, reports, static
+documents, or any case where you have the full input up front.
+
+## Use cases
+
+The engine is general-purpose. Anywhere you need fast, predictable, structured
+layout without touching CSS, it fits:
+
+- **Dashboards** — metric grids, data tables, charts with guaranteed alignment.
+- **Slide decks & presentations** — `<Slide>` is a first-class content frame.
+- **Report generation** — render to SVG server-side, export as PDF or image.
+- **Document rendering** — long-form prose with headings, quotes, callouts, code.
+- **Data visualization** — `<Chart>` + `<DataTable>` on a pretext-measured grid.
+- **LLM streaming UIs** — incremental parsing means partial model output renders
+  at 60fps without reflow. See the [streaming API](#streaming-api) below.
+
+## Streaming API
+
+For token-by-token input (LLMs, server-sent events, WebSocket feeds), use
+`createPipeline()`. It owns an incremental parser, a ring buffer, and a
+subscriber model.
+
+```ts
+import { createPipeline } from '@spatial-markdown/engine';
+import { createCanvasRenderer } from '@spatial-markdown/engine/canvas';
+
+const renderer = createCanvasRenderer(document.querySelector('canvas')!);
+const pipeline = createPipeline();
+pipeline.resize(800, 600);
+
+pipeline.onRender((commands) => renderer.render(commands));
+pipeline.onError((err) => console.error('[spatial]', err));
+
+// feed partial chunks as they arrive — the engine re-lays-out incrementally
+for await (const chunk of llmStream) {
+  pipeline.feed(chunk);
+}
 pipeline.flush();
 ```
 
-## Live demos
-
-```bash
-# Preset gallery (pick from 5 canned documents; see streaming simulation)
-npm run demo
-
-# Gemini-powered live chat → canvas (bring your own API key)
-npm run gemini
-```
-
-The Gemini demo pipes `streamGenerateContent` token-by-token into the
-engine and renders to canvas in real time. Great for feeling what a
-"website-as-a-response" actually looks like.
+The pipeline only redraws what changed, respects backpressure, and is
+safe to feed mid-tag — the FSM tokenizer suspends until the chunk closes.
 
 ## Architecture
 
@@ -87,22 +115,109 @@ import { SpatialView, useSpatialPipeline } from '@spatial-markdown/engine/react'
 function Demo() {
   const { commands, pipeline } = useSpatialPipeline();
   useEffect(() => {
-    pipeline?.feed('<Slide><Heading level={1}>Hi</Heading></Slide>');
-    pipeline?.flush();
+    if (!pipeline) return;
+    pipeline.resize(800, 600);
+    pipeline.feed('<Slide><Heading level={1}>Hi</Heading></Slide>');
+    pipeline.flush();
   }, [pipeline]);
   return <SpatialView commands={commands} width={800} height={600} />;
 }
 ```
 
-## Tag vocabulary (short list — full spec in `specs/spatial-spec.md`)
+## Tag vocabulary
 
-**Layout containers:** `<Slide>`, `<Stack>`, `<Columns>`, `<AutoGrid>`, `<Canvas>`
-**Content components:** `<MetricCard>`, `<DataTable>`, `<Chart>`, `<CodeBlock>`, `<Quote>`, `<Callout>`
-**Primitives:** `<Heading>`, `<Text>`, `<Divider>`, `<Spacer>`, `<Image>`
+**16 built-in components that guarantee layout correctness.** No CSS surprises,
+no cascade bugs, no runtime errors from unknown tags. The closed taxonomy is
+the feature — it's what lets the engine prove layout correctness ahead of time
+and lets upstream producers (humans or LLMs) stay inside a structurally-valid
+grammar.
 
-Closed taxonomy — no custom tags, no extensibility by design. The narrow
-vocabulary is what lets LLMs produce structurally-valid output and lets
-the engine guarantee zero layout shift.
+**Layout containers**
+- `<Slide>` — **the top-level content frame.** Despite the name, it's used for
+  any bounded document: a dashboard screen, a report page, a card surface, a
+  slide. Establishes padding, theme context, and a root stacking block.
+- `<Stack>` — vertical flow with gap.
+- `<Columns>` — equal or weighted horizontal columns.
+- `<AutoGrid>` — responsive grid with `minChildWidth`.
+- `<Canvas>` — absolute-positioning escape hatch.
+
+**Content components**
+- `<MetricCard>`, `<DataTable>`, `<Chart>`, `<CodeBlock>`, `<Quote>`, `<Callout>`
+
+**Primitives**
+- `<Heading>`, `<Text>`, `<Divider>`, `<Spacer>`, `<Image>`
+
+Full grammar with props and layout rules in
+[`specs/spatial-spec.md`](./specs/spatial-spec.md).
+
+## Themes
+
+Four built-in presets cover most needs, and `createTheme()` produces custom
+themes with full type safety.
+
+```ts
+import {
+  render,
+  defaultTheme,
+  darkTheme,
+  highContrastTheme,
+  warmTheme,
+  createTheme,
+} from '@spatial-markdown/engine';
+
+// use a preset
+const commands = render(markup, { width: 800, height: 600, theme: darkTheme });
+
+// or build your own by extending a preset
+const brandTheme = createTheme({
+  colors: { accent: '#ff3366', surface: '#0b0b10' },
+}, defaultTheme);
+```
+
+Themes control color, typography, spacing scale, and component-level tokens
+(card radius, divider weight, etc.). They never affect layout geometry — only
+paint — so you can swap themes on a running pipeline without re-measuring.
+
+## Error handling
+
+Every pipeline exposes `onError` for parser, measurement, and layout failures.
+The engine never throws into your render path; errors are surfaced via the
+subscriber and the pipeline continues with the last known-good AST.
+
+```ts
+pipeline.onError((err) => {
+  // err is the raw error thrown during the layout pass.
+  // The pipeline recovers and continues with the last known-good AST.
+  console.error('[spatial]', err);
+});
+```
+
+Without an `onError` subscriber, errors are logged to `console.error` and
+silently recovered from. With one, you get full control over error reporting.
+
+## Node.js / SSR
+
+Pretext runs in Node, so the engine does too.
+
+- **SVG string renderer** works out of the box server-side. Call
+  `createSVGRenderer().renderToString()` and write the output to a file,
+  HTTP response, or PDF converter. No JSDOM required.
+- **Canvas measurement** can use
+  [`node-canvas`](https://github.com/Automattic/node-canvas) (`canvas` package)
+  for platform-accurate font metrics on the server. The engine's test suite
+  already uses this approach.
+- **React renderer** renders through `renderToString` / `renderToStaticMarkup`
+  unchanged — it emits SVG, so the hydration surface is tiny.
+
+```ts
+// server.ts
+import { render, px } from '@spatial-markdown/engine';
+import { createSVGRenderer } from '@spatial-markdown/engine/svg';
+
+const commands = render(markup, { width: 1200, height: 630 });
+const svg = createSVGRenderer().renderToString(commands, px(1200), px(630));
+response.setHeader('content-type', 'image/svg+xml').send(svg);
+```
 
 ## Performance
 
@@ -116,21 +231,36 @@ the engine guarantee zero layout shift.
 
 Run `npm run test:bench` to reproduce on your machine.
 
+## Live demos
+
+```bash
+# Preset gallery (pick from 5 canned documents; see streaming simulation)
+npm run demo
+
+# Gemini-powered live chat → canvas (bring your own API key)
+npm run gemini
+```
+
+The Gemini demo pipes `streamGenerateContent` token-by-token into the
+engine and renders to canvas in real time. Great for feeling what a
+"website-as-a-response" actually looks like.
+
 ## Status & scope
 
-**v0.1 — ready for internal tools and demos.** 173 tests pass. Typecheck
-clean in strict mode. Canvas and SVG renderers ship; React renderer ships.
-Build produces ESM + CJS + `.d.ts` for all subpaths.
+**v0.1 — ready for internal tools, dashboards, and demos.** 173 tests pass.
+Typecheck clean in strict mode. Canvas, SVG, and React renderers ship. Build
+produces ESM + CJS + `.d.ts` for all subpaths. New in this release: synchronous
+`render()` entry point, four theme presets + `createTheme()`, `onError`
+subscriber, SSR-ready SVG string renderer.
 
 **Not yet production-ready for public clients:**
 - Accessibility tree (canvas rendering has no a11y by default — on roadmap
   as a parallel hidden DOM renderer)
-- SSR story exists for SVG, not yet documented end-to-end
 - Visual regression testing harness not yet wired into CI
 - `@chenglou/pretext` is pre-1.0 — one transitive dependency risk
 
 **Not in scope:**
-- A general Markdown/MDX alternative. This is a canvas-first streaming engine.
+- A general Markdown/MDX alternative. This is a geometry-first structured engine.
 - A full CSS engine. We implement block, flex, grid, absolute, inline — no floats,
   no transforms, no cascading.
 - A general-purpose UI framework. No events, no focus management, no routing.
@@ -147,6 +277,14 @@ npm run test:bench    # performance benchmarks
 npm run test:coverage # v8 coverage (80% thresholds)
 npm run typecheck     # strict tsc --noEmit
 ```
+
+## Contributing
+
+Issues, reproductions, and PRs are all welcome. Please read
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) for the development workflow, the
+performance budget that every PR must respect, and the process for proposing
+new tags (spoiler: the bar is intentionally high — the closed vocabulary is a
+feature, not an oversight).
 
 ## License
 

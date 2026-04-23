@@ -6,6 +6,7 @@
 
 import type { Pixels, NodeId, FontDescriptor } from './primitives';
 
+/** Renderer-agnostic draw command — consumed by Canvas, SVG, and React backends. */
 export type RenderCommand =
   | FillRectCommand
   | StrokeRectCommand
@@ -15,6 +16,7 @@ export type RenderCommand =
   | RestoreClipCommand
   | DrawLineCommand;
 
+/** Fills a rounded rectangle with a solid color. */
 export interface FillRectCommand {
   readonly kind: 'fill-rect';
   readonly nodeId: NodeId;
@@ -26,6 +28,7 @@ export interface FillRectCommand {
   readonly borderRadius: Pixels;
 }
 
+/** Strokes the outline of a rounded rectangle. */
 export interface StrokeRectCommand {
   readonly kind: 'stroke-rect';
   readonly nodeId: NodeId;
@@ -38,6 +41,7 @@ export interface StrokeRectCommand {
   readonly borderRadius: Pixels;
 }
 
+/** Draws a text string at a given position with font, color, and max-width constraints. */
 export interface FillTextCommand {
   readonly kind: 'fill-text';
   readonly nodeId: NodeId;
@@ -50,6 +54,7 @@ export interface FillTextCommand {
   readonly lineHeight: Pixels;
 }
 
+/** Draws a raster image into the specified rectangle. */
 export interface DrawImageCommand {
   readonly kind: 'draw-image';
   readonly nodeId: NodeId;
@@ -60,6 +65,7 @@ export interface DrawImageCommand {
   readonly height: Pixels;
 }
 
+/** Pushes a rectangular clip region onto the rendering context. */
 export interface ClipRectCommand {
   readonly kind: 'clip-rect';
   readonly nodeId: NodeId;
@@ -70,11 +76,13 @@ export interface ClipRectCommand {
   readonly borderRadius: Pixels;
 }
 
+/** Pops the most recent clip region, restoring the previous clipping state. */
 export interface RestoreClipCommand {
   readonly kind: 'restore-clip';
   readonly nodeId: NodeId;
 }
 
+/** Draws a straight line between two points with a given color and width. */
 export interface DrawLineCommand {
   readonly kind: 'draw-line';
   readonly nodeId: NodeId;

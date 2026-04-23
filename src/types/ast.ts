@@ -9,10 +9,12 @@ import type { Pixels, NodeId, FontDescriptor, Rect } from './primitives';
 
 // ─── Node Status ─────────────────────────────────────────────────────
 
+/** Whether a node is still receiving streamed content or has been finalized. */
 export type NodeStatus = 'streaming' | 'closed';
 
 // ─── Dirty Flags ─────────────────────────────────────────────────────
 
+/** Per-node invalidation flags that drive incremental layout and render passes. */
 export interface DirtyFlags {
   textDirty: boolean;
   constraintDirty: boolean;
@@ -22,6 +24,7 @@ export interface DirtyFlags {
 
 // ─── Base Fields ─────────────────────────────────────────────────────
 
+/** Common fields shared by every node in the spatial AST. */
 export interface NodeBase {
   readonly id: NodeId;
   status: NodeStatus;
@@ -33,6 +36,7 @@ export interface NodeBase {
 
 // ─── Text Buffer (for streaming nodes) ───────────────────────────────
 
+/** Mutable text accumulator for nodes that receive streamed content chunks. */
 export interface TextBuffer {
   raw: string;
   lastPrepareLength: number;
@@ -40,6 +44,7 @@ export interface TextBuffer {
 
 // ─── Layout Container Props ──────────────────────────────────────────
 
+/** Configuration for a fixed-size slide — the top-level presentation surface. */
 export interface SlideProps {
   readonly width: Pixels;
   readonly height: Pixels;
@@ -49,6 +54,7 @@ export interface SlideProps {
   readonly background: string | undefined;
 }
 
+/** Configuration for a responsive grid that auto-places children by minimum width. */
 export interface AutoGridProps {
   readonly minChildWidth: Pixels;
   readonly gap: Pixels;
@@ -59,6 +65,7 @@ export interface AutoGridProps {
   readonly padding: Pixels;
 }
 
+/** Configuration for a flex-like linear layout (vertical or horizontal). */
 export interface StackProps {
   readonly direction: 'vertical' | 'horizontal';
   readonly gap: Pixels;
@@ -70,6 +77,7 @@ export interface StackProps {
   readonly wrap: boolean;
 }
 
+/** Configuration for an explicit multi-column layout with user-defined widths. */
 export interface ColumnsProps {
   readonly widths: string;
   readonly gap: Pixels;
@@ -77,6 +85,7 @@ export interface ColumnsProps {
   readonly valign: 'top' | 'center' | 'bottom' | 'stretch';
 }
 
+/** Configuration for a free-form container with optional clipping and background. */
 export interface CanvasProps {
   readonly width: Pixels | 'fill';
   readonly height: Pixels | 'auto';
@@ -87,6 +96,7 @@ export interface CanvasProps {
 
 // ─── Content Component Props ─────────────────────────────────────────
 
+/** Configuration for a KPI metric card showing label, value, trend, and delta. */
 export interface MetricCardProps {
   readonly label: string;
   readonly value: string;
@@ -99,6 +109,7 @@ export interface MetricCardProps {
   readonly borderRadius: Pixels;
 }
 
+/** Configuration for a syntax-highlighted code block with optional line numbers. */
 export interface CodeBlockProps {
   readonly language: string;
   readonly title: string | undefined;
@@ -113,6 +124,7 @@ export interface CodeBlockProps {
   readonly wrap: boolean;
 }
 
+/** Configuration for a tabular data display with headers, striping, and scroll. */
 export interface DataTableProps {
   readonly columns: string;
   readonly striped: boolean;
@@ -126,6 +138,7 @@ export interface DataTableProps {
   readonly borderColor: string | undefined;
 }
 
+/** Configuration for a data visualization chart (bar, line, pie, area, scatter). */
 export interface ChartProps {
   readonly type: 'bar' | 'line' | 'pie' | 'area' | 'scatter';
   readonly title: string | undefined;
@@ -140,6 +153,7 @@ export interface ChartProps {
   readonly animate: boolean;
 }
 
+/** Configuration for a styled block-quote with optional citation. */
 export interface QuoteProps {
   readonly cite: string | undefined;
   readonly variant: 'default' | 'highlight' | 'pull';
@@ -150,6 +164,7 @@ export interface QuoteProps {
   readonly paddingLeft: Pixels;
 }
 
+/** Configuration for a semantic callout box (info, warning, error, tip, etc.). */
 export interface CalloutProps {
   readonly type: 'info' | 'warning' | 'error' | 'success' | 'tip' | 'note';
   readonly title: string;
@@ -162,6 +177,7 @@ export interface CalloutProps {
 
 // ─── Primitive Props ─────────────────────────────────────────────────
 
+/** Configuration for a measured text run with font, alignment, and wrapping. */
 export interface TextProps {
   readonly font: FontDescriptor;
   readonly lineHeight: Pixels;
@@ -173,6 +189,7 @@ export interface TextProps {
   readonly opacity: number;
 }
 
+/** Configuration for a heading element (h1–h6) with color and alignment. */
 export interface HeadingProps {
   readonly level: 1 | 2 | 3 | 4 | 5 | 6;
   readonly color: string | undefined;
@@ -180,11 +197,13 @@ export interface HeadingProps {
   readonly marginBottom: Pixels;
 }
 
+/** Configuration for an invisible spacing element with fixed dimensions. */
 export interface SpacerProps {
   readonly height: Pixels;
   readonly width: Pixels;
 }
 
+/** Configuration for a horizontal or vertical divider rule. */
 export interface DividerProps {
   readonly direction: 'horizontal' | 'vertical';
   readonly thickness: Pixels;
@@ -194,6 +213,7 @@ export interface DividerProps {
   readonly indent: Pixels;
 }
 
+/** Configuration for an image element with sizing, fit mode, and optional caption. */
 export interface ImageProps {
   readonly src: string;
   readonly alt: string;
@@ -208,6 +228,7 @@ export interface ImageProps {
 
 // ─── AST Node: Discriminated Union ───────────────────────────────────
 
+/** Discriminated union of every node that can appear in a spatial AST. */
 export type SpatialNode =
   // Layout Containers
   | (NodeBase & { readonly kind: 'slide'; readonly props: SlideProps; children: SpatialNode[] })
@@ -231,13 +252,18 @@ export type SpatialNode =
 
 // ─── Node Kind Helpers ───────────────────────────────────────────────
 
+/** Node kinds that act as layout containers holding child nodes. */
 export type LayoutContainerKind = 'slide' | 'auto-grid' | 'stack' | 'columns' | 'canvas';
+/** Node kinds that represent rich content components (charts, tables, etc.). */
 export type ContentComponentKind = 'metric-card' | 'code-block' | 'data-table' | 'chart' | 'quote' | 'callout';
+/** Node kinds for leaf-level primitives (text, heading, spacer, divider, image). */
 export type PrimitiveKind = 'text' | 'heading' | 'spacer' | 'divider' | 'image';
+/** Union of all possible node kind discriminators in the spatial AST. */
 export type NodeKind = LayoutContainerKind | ContentComponentKind | PrimitiveKind;
 
 // ─── Root Document ───────────────────────────────────────────────────
 
+/** Root document that owns the AST node tree, index, and streaming open-stack. */
 export interface SpatialDocument {
   readonly version: '1.0';
   children: SpatialNode[];

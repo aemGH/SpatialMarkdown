@@ -105,8 +105,8 @@ export type {
 export { PROTOCOL_VERSION } from './stream';
 
 // Theme
-export type { ThemeConfig } from './theme';
-export { defaultTheme, darkTheme } from './theme';
+export type { ThemeConfig, ThemeOverrides } from './theme';
+export { defaultTheme, darkTheme, highContrastTheme, warmTheme, createTheme } from './theme';
 
 // Layout Constants
 export {

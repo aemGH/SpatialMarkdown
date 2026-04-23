@@ -29,6 +29,7 @@ export type UpstreamMessage =
   | ConfigUpdateMessage
   | PingMessage;
 
+/** An incremental text chunk from the LLM stream (Python → TS). */
 export interface StreamChunkMessage {
   readonly v: typeof PROTOCOL_VERSION;
   readonly type: 'chunk';
@@ -37,6 +38,7 @@ export interface StreamChunkMessage {
   readonly ts: number;
 }
 
+/** Signals that the LLM stream has terminated, with a completion reason. */
 export interface StreamEndMessage {
   readonly v: typeof PROTOCOL_VERSION;
   readonly type: 'end';
@@ -44,6 +46,7 @@ export interface StreamEndMessage {
   readonly reason: 'complete' | 'cancelled' | 'max-tokens';
 }
 
+/** Reports an upstream error with a machine-readable code and human message. */
 export interface StreamErrorMessage {
   readonly v: typeof PROTOCOL_VERSION;
   readonly type: 'error';
@@ -52,6 +55,7 @@ export interface StreamErrorMessage {
   readonly message: string;
 }
 
+/** Runtime configuration change (viewport resize, theme switch) from host. */
 export interface ConfigUpdateMessage {
   readonly v: typeof PROTOCOL_VERSION;
   readonly type: 'config';
@@ -60,6 +64,7 @@ export interface ConfigUpdateMessage {
   readonly theme?: string;
 }
 
+/** Keep-alive ping from host — expects a matching PongMessage in return. */
 export interface PingMessage {
   readonly v: typeof PROTOCOL_VERSION;
   readonly type: 'ping';
@@ -74,6 +79,7 @@ export type DownstreamMessage =
   | AckMessage
   | PongMessage;
 
+/** Tells the host to pause sending because the render buffer is full. */
 export interface BackpressurePauseMessage {
   readonly v: typeof PROTOCOL_VERSION;
   readonly type: 'pause';
@@ -81,11 +87,13 @@ export interface BackpressurePauseMessage {
   readonly bufferUtilization: number;
 }
 
+/** Tells the host it may resume sending — buffer pressure has eased. */
 export interface BackpressureResumeMessage {
   readonly v: typeof PROTOCOL_VERSION;
   readonly type: 'resume';
 }
 
+/** Acknowledges a processed chunk, reporting render latency for flow control. */
 export interface AckMessage {
   readonly v: typeof PROTOCOL_VERSION;
   readonly type: 'ack';
@@ -93,6 +101,7 @@ export interface AckMessage {
   readonly renderLatencyMs: number;
 }
 
+/** Keep-alive pong response sent back to the host. */
 export interface PongMessage {
   readonly v: typeof PROTOCOL_VERSION;
   readonly type: 'pong';

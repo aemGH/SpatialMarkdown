@@ -9,6 +9,7 @@ import type { NodeKind } from './ast';
 
 // ─── Layout Constraints (top-down) ──────────────────────────────────
 
+/** Top-down size constraints passed from parent to child during layout. */
 export interface LayoutConstraint {
   readonly maxWidth: Pixels;
   readonly maxHeight: Pixels;
@@ -18,16 +19,19 @@ export interface LayoutConstraint {
 
 // ─── Measurement Results ─────────────────────────────────────────────
 
+/** Result of measuring a node's content — either a simple height or per-line detail. */
 export type MeasurementResult =
   | HeightOnlyMeasurement
   | LineDetailMeasurement;
 
+/** Lightweight measurement that only reports total height and line count. */
 export interface HeightOnlyMeasurement {
   readonly kind: 'height-only';
   readonly height: Pixels;
   readonly lineCount: number;
 }
 
+/** Full measurement including per-line text and width for hit-testing and rendering. */
 export interface LineDetailMeasurement {
   readonly kind: 'line-detail';
   readonly height: Pixels;
@@ -40,6 +44,7 @@ export interface LineDetailMeasurement {
 
 // ─── Layout Box (absolute coordinates) ───────────────────────────────
 
+/** Resolved layout geometry for a single node in absolute document coordinates. */
 export interface LayoutBox {
   readonly nodeId: NodeId;
   readonly kind: NodeKind;

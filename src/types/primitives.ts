@@ -44,6 +44,7 @@ export function font(s: string): FontDescriptor {
 
 // ─── Geometry Primitives ─────────────────────────────────────────────
 
+/** Pixel-aligned bounding rectangle in absolute document coordinates. */
 export interface Rect {
   readonly x: Pixels;
   readonly y: Pixels;
@@ -51,6 +52,7 @@ export interface Rect {
   readonly height: Pixels;
 }
 
+/** Per-side inset distances used for padding and margin calculations. */
 export interface EdgeInsets {
   readonly top: Pixels;
   readonly right: Pixels;

@@ -53,10 +53,8 @@ import type { GeometryCalculator } from './engine/geometry/index';
 // Renderer layer
 import { buildRenderCommands } from './renderer/command-builder';
 
-// Bridge layer (backpressure)
-import { createRingBuffer } from './bridge/buffer/ring-buffer';
+// Bridge layer (backpressure) — lazy-loaded to avoid bundling for static usage
 import type { RingBuffer } from './bridge/buffer/ring-buffer';
-import { createBackpressureController } from './bridge/buffer/backpressure';
 import type { BackpressureController } from './bridge/buffer/backpressure';
 import type { StreamToken } from './types/stream';
 
@@ -99,6 +97,15 @@ export interface SpatialPipeline {
    * @returns An unsubscribe function. Call it to remove this callback.
    */
   readonly onRender: (callback: (commands: ReadonlyArray<RenderCommand>) => void) => () => void;
+
+  /**
+   * Subscribe to pipeline errors. The callback fires when a layout
+   * pass throws an exception. Without this, errors are logged to
+   * console.error and silently recovered from.
+   *
+   * @returns An unsubscribe function. Call it to remove this callback.
+   */
+  readonly onError: (callback: (error: unknown) => void) => () => void;
 
   /**
    * Update the viewport dimensions. Triggers a full re-layout on the
@@ -155,6 +162,9 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
   /** Subscribers for render output */
   const renderSubscribers: Set<(commands: ReadonlyArray<RenderCommand>) => void> = new Set();
 
+  /** Subscribers for error events */
+  const errorSubscribers: Set<(error: unknown) => void> = new Set();
+
   /** Whether the pipeline has been destroyed */
   let destroyed = false;
 
@@ -165,27 +175,42 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
    */
   let previousConstraints: Map<NodeId, LayoutConstraint> | null = null;
 
-  // ── Backpressure ──────────────────────────────────────────────
+  // ── Backpressure (lazy-initialized on first feedStream call) ──
 
   /**
    * Stream token buffer with hysteresis-based backpressure.
-   * When the buffer fills past the high watermark, the backpressure
-   * controller signals pause to the upstream producer.
+   * Lazy-initialized to avoid bundling bridge code for static usage.
    */
-  const STREAM_BUFFER_CAPACITY = 256;
-  const streamBuffer: RingBuffer<StreamToken> = createRingBuffer(STREAM_BUFFER_CAPACITY);
-  const backpressure: BackpressureController = createBackpressureController({
-    highWatermark: 0.75,
-    lowWatermark: 0.25,
-    onPause: () => {
-      // In a real integration, this would signal the WebSocket/SSE adapter
-      // to pause reading from the upstream. For now, we simply stop
-      // reading from the buffer until utilization drops.
-    },
-    onResume: () => {
-      // Signal to resume reading from upstream.
-    },
-  });
+  let streamBuffer: RingBuffer<StreamToken> | null = null;
+  let backpressure: BackpressureController | null = null;
+
+  async function ensureStreamInfra(): Promise<{
+    buffer: RingBuffer<StreamToken>;
+    bp: BackpressureController;
+  }> {
+    if (streamBuffer !== null && backpressure !== null) {
+      return { buffer: streamBuffer, bp: backpressure };
+    }
+
+    const { createRingBuffer } = await import('./bridge/buffer/ring-buffer');
+    const { createBackpressureController } = await import('./bridge/buffer/backpressure');
+
+    const STREAM_BUFFER_CAPACITY = 256;
+    streamBuffer = createRingBuffer(STREAM_BUFFER_CAPACITY);
+    backpressure = createBackpressureController({
+      highWatermark: 0.75,
+      lowWatermark: 0.25,
+      onPause: () => {
+        // In a real integration, this would signal the WebSocket/SSE adapter
+        // to pause reading from the upstream.
+      },
+      onResume: () => {
+        // Signal to resume reading from upstream.
+      },
+    });
+
+    return { buffer: streamBuffer, bp: backpressure };
+  }
 
   // ── Core layout-and-render pass ────────────────────────────────
 
@@ -267,9 +292,14 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
       // 10. Fire subscriber callbacks
       notifySubscribers(commands);
     } catch (error: unknown) {
-      // Log but don't crash the pipeline — the next feed() will
-      // schedule another layout pass that may succeed.
-      console.error('[SpatialPipeline] Layout pass error:', error);
+      // Notify error subscribers; fall back to console.error if none.
+      if (errorSubscribers.size > 0) {
+        errorSubscribers.forEach((callback) => {
+          callback(error);
+        });
+      } else {
+        console.error('[SpatialPipeline] Layout pass error:', error);
+      }
     }
   }
 
@@ -399,61 +429,97 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
   function feedStream(stream: ReadableStream<string>): void {
     if (destroyed) return;
 
-    const reader = stream.getReader();
+    // Lazy-init bridge infrastructure, then start pumping.
+    ensureStreamInfra().then(({ buffer, bp }) => {
+      if (destroyed) return;
 
-    function pump(): void {
-      reader.read().then(
-        (result) => {
-          if (destroyed) {
-            reader.cancel().catch(() => {
-              // Swallow cancel errors after destroy
-            });
-            return;
-          }
+      const reader = stream.getReader();
 
-          if (result.done) {
-            // Stream ended — flush the tokenizer to emit any trailing
-            // partial content and EOF
+      function pump(): void {
+        reader.read().then(
+          (result) => {
+            if (destroyed) {
+              reader.cancel().catch(() => {
+                // Swallow cancel errors after destroy
+              });
+              return;
+            }
+
+            if (result.done) {
+              // Stream ended — flush the tokenizer to emit any trailing
+              // partial content and EOF
+              const finalTokens = tokenizer.flush();
+              if (finalTokens.length > 0) {
+                astBuilder.push(finalTokens);
+                scheduleLayout();
+              }
+              return;
+            }
+
+            // Feed the chunk through the normal pipeline path
+            feed(result.value);
+
+            // Check backpressure after each write. If the stream buffer
+            // is above the high watermark, the onPause callback has been
+            // invoked (which can signal the upstream to pause). When it
+            // drops below the low watermark, onResume fires.
+            // We drain the stream buffer before the next pump cycle.
+            while (!buffer.isEmpty()) {
+              const token = buffer.read();
+              if (token === undefined) break;
+              // StreamToken is not yet processed here — it's available
+              // for future use if a consumer wants to track offsets.
+            }
+            bp.check(buffer.utilization());
+
+            // Continue pumping
+            pump();
+          },
+          (_error: unknown) => {
+            // Stream errored — flush what we have and stop.
             const finalTokens = tokenizer.flush();
             if (finalTokens.length > 0) {
               astBuilder.push(finalTokens);
               scheduleLayout();
             }
-            return;
-          }
+            buffer.clear();
+          },
+        );
+      }
 
-          // Feed the chunk through the normal pipeline path
-          feed(result.value);
+      pump();
+    }).catch((_error: unknown) => {
+      // If bridge modules fail to load, fall back to simple streaming
+      // without backpressure support.
+      const reader = stream.getReader();
 
-          // Check backpressure after each write. If the stream buffer
-          // is above the high watermark, the onPause callback has been
-          // invoked (which can signal the upstream to pause). When it
-          // drops below the low watermark, onResume fires.
-          // We drain the stream buffer before the next pump cycle.
-          while (!streamBuffer.isEmpty()) {
-            const token = streamBuffer.read();
-            if (token === undefined) break;
-            // StreamToken is not yet processed here — it's available
-            // for future use if a consumer wants to track offsets.
-          }
-          backpressure.check(streamBuffer.utilization());
+      function simplePump(): void {
+        reader.read().then(
+          (result) => {
+            if (destroyed) return;
+            if (result.done) {
+              const finalTokens = tokenizer.flush();
+              if (finalTokens.length > 0) {
+                astBuilder.push(finalTokens);
+                scheduleLayout();
+              }
+              return;
+            }
+            feed(result.value);
+            simplePump();
+          },
+          () => {
+            const finalTokens = tokenizer.flush();
+            if (finalTokens.length > 0) {
+              astBuilder.push(finalTokens);
+              scheduleLayout();
+            }
+          },
+        );
+      }
 
-          // Continue pumping
-          pump();
-        },
-        (_error: unknown) => {
-          // Stream errored — flush what we have and stop.
-          const finalTokens = tokenizer.flush();
-          if (finalTokens.length > 0) {
-            astBuilder.push(finalTokens);
-            scheduleLayout();
-          }
-          streamBuffer.clear();
-        },
-      );
-    }
-
-    pump();
+      simplePump();
+    });
   }
 
   function onRender(
@@ -476,6 +542,20 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
     // Return unsubscribe function
     return () => {
       renderSubscribers.delete(callback);
+    };
+  }
+
+  function onError(
+    callback: (error: unknown) => void,
+  ): () => void {
+    if (destroyed) {
+      return () => { /* destroyed */ };
+    }
+
+    errorSubscribers.add(callback);
+
+    return () => {
+      errorSubscribers.delete(callback);
     };
   }
 
@@ -534,15 +614,85 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
     destroyed = true;
     scheduler.destroy();
     renderSubscribers.clear();
+    errorSubscribers.clear();
+
+    // Clear lazy stream infrastructure if it was initialized
+    if (streamBuffer !== null) {
+      streamBuffer.clear();
+    }
   }
 
   return {
     feed,
     feedStream,
     onRender,
+    onError,
     resize,
     getDocument,
     flush,
     destroy,
   };
+}
+
+// ─── Convenience: Synchronous one-shot render ────────────────────────
+
+/**
+ * Options for the synchronous `render()` convenience function.
+ */
+export interface RenderOptions {
+  /** Viewport width in pixels. Default: 800. */
+  readonly width?: number;
+  /** Viewport height in pixels. Default: 600. */
+  readonly height?: number;
+  /** Theme configuration. Default: built-in light theme. */
+  readonly theme?: EngineConfig['theme'];
+}
+
+/**
+ * Render Spatial Markdown to draw commands in a single synchronous call.
+ *
+ * This is the simplest way to use the engine — no pipeline lifecycle,
+ * no subscriptions, no cleanup. Feed markup in, get render commands out.
+ *
+ * For streaming or incremental usage, use `createPipeline()` instead.
+ *
+ * @param markup  - Spatial Markdown string (e.g., `<Slide><Heading level={1}>Hello</Heading></Slide>`)
+ * @param options - Optional viewport dimensions and theme.
+ * @returns A flat array of renderer-agnostic RenderCommands.
+ *
+ * @example
+ * ```ts
+ * import { render } from '@spatial-markdown/engine';
+ *
+ * const commands = render('<Slide><Heading level={1}>Hello</Heading></Slide>', {
+ *   width: 800,
+ *   height: 600,
+ * });
+ *
+ * // Pass commands to any renderer:
+ * // createCanvasRenderer(canvas).render(commands);
+ * // createSVGRenderer().renderToString(commands, px(800), px(600));
+ * ```
+ */
+export function render(
+  markup: string,
+  options?: RenderOptions,
+): RenderCommand[] {
+  const { width = 800, height = 600, theme } = options ?? {};
+
+  const pipeline = createPipeline(theme !== undefined ? { theme } : undefined);
+  pipeline.resize(width, height);
+
+  let result: RenderCommand[] = [];
+
+  pipeline.onRender((commands) => {
+    // Copy the commands since we'll destroy the pipeline
+    result = commands.slice() as RenderCommand[];
+  });
+
+  pipeline.feed(markup);
+  pipeline.flush();
+  pipeline.destroy();
+
+  return result;
 }

@@ -716,19 +716,18 @@ function setupResizeHandle(handle: HTMLDivElement, side: 'left' | 'right'): void
     canvasWidthLabel.classList.add('visible');
     document.body.classList.add('resizing-canvas');
 
-    const canvasRect = canvas.getBoundingClientRect();
-    const canvasCenter = canvasRect.left + canvasRect.width / 2;
+    const startX = e.clientX;
+    const startW = canvasW;
 
     const onMouseMove = (ev: MouseEvent) => {
-      let newW: number;
-      if (side === 'right') {
-        // Right edge: width = mouse - left edge
-        newW = Math.round(ev.clientX - canvasRect.left);
-      } else {
-        // Left edge: mirror — width expands symmetrically from center
-        // or simply: width = right edge - mouse
-        newW = Math.round(canvasRect.right - ev.clientX);
-      }
+      const deltaX = ev.clientX - startX;
+      // Since the canvas is centered (justify-content: center), dragging one
+      // edge by N pixels requires increasing the width by 2N pixels to keep
+      // that edge under the cursor.
+      const newW = side === 'right'
+        ? startW + deltaX * 2
+        : startW - deltaX * 2;
+
       applyCanvasWidth(newW);
     };
 
