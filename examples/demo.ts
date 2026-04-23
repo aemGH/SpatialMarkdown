@@ -607,12 +607,6 @@ function applyCanvasWidth(newW: number): void {
 
   renderMode.textContent = `${canvasW} x ${currentCanvasH}`;
   canvasWidthLabel.textContent = `${canvasW}px`;
-  
-  // Re-render current content
-  const text = editor.value.trim();
-  if (text.length > 0) {
-    feedInstant(text);
-  }
 }
 
 function setupResizeHandle(handle: HTMLDivElement, side: 'left' | 'right'): void {
@@ -685,7 +679,7 @@ if (defaultPreset !== undefined) {
 }
 
 resetPipeline();
-renderMode.textContent = `${CANVAS_W} x ${CANVAS_H}`;
+renderMode.textContent = `${canvasW} x ${currentCanvasH}`;
 
 console.log(
   '%c Spatial Markdown Engine — Demo ',

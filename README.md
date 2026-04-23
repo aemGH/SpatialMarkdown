@@ -87,6 +87,10 @@ pipeline.flush();
 The pipeline only redraws what changed, respects backpressure, and is
 safe to feed mid-tag — the FSM tokenizer suspends until the chunk closes.
 
+Resize is synchronous — call `pipeline.resize()` during a drag or
+animation and `onRender` fires immediately with the re-laid-out commands.
+No `flush()`, no re-feed, no special handling. It just works.
+
 ## Architecture
 
 | Layer | Source | Role |
@@ -234,12 +238,20 @@ Run `npm run test:bench` to reproduce on your machine.
 ## Live demos
 
 ```bash
+# Showcase — stress-test theater (streaming, resize, zero-reflow proof)
+npm run showcase
+
 # Preset gallery (pick from 5 canned documents; see streaming simulation)
 npm run demo
 
 # Gemini-powered live chat → canvas (bring your own API key)
 npm run gemini
 ```
+
+The **Showcase** demo is the best place to start — it runs four stress
+scenarios that demonstrate the engine's superpowers: firehose streaming,
+live responsive resize, incremental zero-reflow proof, and a combined
+stress test. No API key required.
 
 The Gemini demo pipes `streamGenerateContent` token-by-token into the
 engine and renders to canvas in real time. Great for feeling what a
@@ -269,6 +281,7 @@ subscriber, SSR-ready SVG string renderer.
 
 ```
 npm run dev           # library dev mode (Vite)
+npm run showcase      # stress-test showcase demo
 npm run demo          # preset gallery demo
 npm run gemini        # Gemini live chat demo
 npm run build         # ESM + CJS + .d.ts to dist/

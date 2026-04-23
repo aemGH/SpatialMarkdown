@@ -108,8 +108,17 @@ export interface SpatialPipeline {
   readonly onError: (callback: (error: unknown) => void) => () => void;
 
   /**
-   * Update the viewport dimensions. Triggers a full re-layout on the
-   * next animation frame.
+   * Update the viewport dimensions. If the pipeline already has
+   * content, the layout pass runs synchronously and subscribers
+   * receive updated render commands before this call returns.
+   *
+   * No `flush()` or `feed()` required after resize — it just works.
+   *
+   * ```ts
+   * renderer.resize(newWidth, newHeight);
+   * pipeline.resize(newWidth, newHeight);
+   * // onRender has already fired with the re-laid-out commands
+   * ```
    */
   readonly resize: (width: number, height: number) => void;
 
@@ -587,8 +596,18 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
       }
     }
 
-    // A viewport change invalidates all constraints — schedule re-layout
-    scheduleLayout();
+    // If the AST already has content, execute the layout pass
+    // synchronously so the subscriber sees the result immediately.
+    // This is what makes drag-resize and animation feel instant —
+    // the consumer should never have to call flush() after resize().
+    //
+    // If the AST is empty (no content fed yet), just schedule for
+    // later — the next feed() + frame will pick it up.
+    if (doc.children.length > 0) {
+      executeLayoutPass();
+    } else {
+      scheduleLayout();
+    }
   }
 
   function getDocument(): SpatialDocument {

@@ -104,6 +104,36 @@ describe('Pipeline end-to-end rendering', () => {
     expect(hasMeaningfulText).toBe(true);
   });
 
+  it('re-renders synchronously on resize without flush or re-feed', () => {
+    // Core contract: resize() with existing content must fire onRender
+    // synchronously. No flush(), no re-feed. It just works.
+    pipeline.resize(800, 600);
+    pipeline.feed(FULL_PRESET);
+    pipeline.flush();
+
+    let commands800: ReadonlyArray<RenderCommand> = [];
+    const unsub800 = pipeline.onRender((cmds) => { commands800 = cmds; });
+    // Force a render to capture the 800px state
+    pipeline.flush();
+    unsub800();
+    expect(commands800.length).toBeGreaterThan(0);
+
+    // Now resize to 400px — NO flush, NO feed. Just resize.
+    let commands400: ReadonlyArray<RenderCommand> = [];
+    const unsub400 = pipeline.onRender((cmds) => { commands400 = cmds; });
+    pipeline.resize(400, 600);
+    unsub400();
+
+    // onRender must have fired synchronously during resize()
+    expect(commands400.length).toBeGreaterThan(0);
+
+    // The layout should differ — slide background width should match viewport
+    const slideBg800 = commands800.find(c => c.kind === 'fill-rect' && c.width > 700);
+    const slideBg400 = commands400.find(c => c.kind === 'fill-rect' && c.width < 500);
+    expect(slideBg800).toBeDefined();
+    expect(slideBg400).toBeDefined();
+  });
+
   it('places every command at non-negative coordinates', () => {
     pipeline.feed(FULL_PRESET);
     const commands = captureCommands(pipeline);
