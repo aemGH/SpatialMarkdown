@@ -52,6 +52,8 @@ export interface FillTextCommand {
   readonly color: string;
   readonly maxWidth: Pixels;
   readonly lineHeight: Pixels;
+  /** Horizontal text alignment. Defaults to 'left' if undefined. */
+  readonly align?: 'left' | 'center' | 'right';
 }
 
 /** Draws a raster image into the specified rectangle. */

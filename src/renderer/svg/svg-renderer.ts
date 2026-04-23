@@ -121,6 +121,10 @@ function buildStrokeRect(cmd: StrokeRectCommand): SVGElement {
 function buildFillText(cmd: FillTextCommand): SVGElement {
   const lines = cmd.text.split('\n');
 
+  let textAnchor = 'start';
+  if (cmd.align === 'right') textAnchor = 'end';
+  if (cmd.align === 'center') textAnchor = 'middle';
+
   // Single line: simple <text> element
   if (lines.length <= 1) {
     const text = createSVGElement('text', [
@@ -129,6 +133,7 @@ function buildFillText(cmd: FillTextCommand): SVGElement {
       ['font', cmd.font],
       ['fill', cmd.color],
       ['dominant-baseline', 'text-before-edge'],
+      ['text-anchor', textAnchor],
     ]);
 
     if (cmd.maxWidth > 0) {
@@ -145,6 +150,7 @@ function buildFillText(cmd: FillTextCommand): SVGElement {
     ['font', cmd.font],
     ['fill', cmd.color],
     ['dominant-baseline', 'text-before-edge'],
+    ['text-anchor', textAnchor],
   ]);
 
   for (let i = 0; i < lines.length; i++) {
@@ -339,13 +345,17 @@ function fillTextToString(cmd: FillTextCommand): string {
   const fontAttr = escapeAttr(cmd.font);
   const colorAttr = escapeAttr(cmd.color);
 
+  let textAnchor = 'start';
+  if (cmd.align === 'right') textAnchor = 'end';
+  if (cmd.align === 'center') textAnchor = 'middle';
+
   if (lines.length <= 1) {
     const textContent = escapeText(lines[0] ?? '');
-    return `<text x="${cmd.x}" y="${cmd.y}" font="${fontAttr}" fill="${colorAttr}" dominant-baseline="text-before-edge">${textContent}</text>`;
+    return `<text x="${cmd.x}" y="${cmd.y}" font="${fontAttr}" fill="${colorAttr}" dominant-baseline="text-before-edge" text-anchor="${textAnchor}">${textContent}</text>`;
   }
 
   // Multi-line with <tspan>s
-  let s = `<text font="${fontAttr}" fill="${colorAttr}" dominant-baseline="text-before-edge">`;
+  let s = `<text font="${fontAttr}" fill="${colorAttr}" dominant-baseline="text-before-edge" text-anchor="${textAnchor}">`;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line === undefined) continue;

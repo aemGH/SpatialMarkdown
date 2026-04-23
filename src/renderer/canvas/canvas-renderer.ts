@@ -181,6 +181,14 @@ function executeFillText(
   ctx.font = cmd.font;
   ctx.fillStyle = cmd.color;
   ctx.textBaseline = 'top';
+  
+  if (cmd.align === 'right') {
+    ctx.textAlign = 'right';
+  } else if (cmd.align === 'center') {
+    ctx.textAlign = 'center';
+  } else {
+    ctx.textAlign = 'left';
+  }
 
   // Handle multi-line text: split on \n and advance y by lineHeight
   const lines = cmd.text.split('\n');
@@ -309,6 +317,12 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement): CanvasRenderer 
 
   function renderCommands(commands: ReadonlyArray<RenderCommand>): void {
     if (destroyed) return;
+
+    // Automatically adapt to browser zoom / DPR changes on the fly
+    if (typeof window !== 'undefined' && window.devicePixelRatio !== dpr) {
+      dpr = window.devicePixelRatio;
+      applyDPRScaling();
+    }
 
     // Clear with identity transform to cover full physical canvas
     ctx.save();

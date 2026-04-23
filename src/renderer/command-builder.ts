@@ -284,6 +284,7 @@ function emitTextLines(
         color,
         maxWidth,
         lineHeight,
+        align: 'left',
       });
     });
   }
@@ -689,6 +690,7 @@ function emitQuoteCommands(
       color: theme.colors.textSecondary,
       maxWidth: box.contentWidth,
       lineHeight: QUOTE_CITE_LINE_HEIGHT,
+      align: 'left',
     });
   }
 
@@ -759,6 +761,7 @@ function emitMetricCardCommands(
     color: theme.colors.textSecondary,
     maxWidth: box.contentWidth,
     lineHeight: theme.lineHeights.caption,
+    align: 'left',
   });
   currentY = px(currentY + theme.lineHeights.caption + theme.spacing.sm);
 
@@ -773,6 +776,7 @@ function emitMetricCardCommands(
     color: theme.colors.text,
     maxWidth: box.contentWidth,
     lineHeight: METRIC_VALUE_LINE_HEIGHT,
+    align: 'left',
   });
   currentY = px(currentY + METRIC_VALUE_LINE_HEIGHT + METRIC_VALUE_DELTA_GAP);
 
@@ -794,6 +798,7 @@ function emitMetricCardCommands(
       color: sentimentColor,
       maxWidth: box.contentWidth,
       lineHeight: METRIC_DELTA_LINE_HEIGHT,
+      align: 'left',
     });
     currentY = px(currentY + METRIC_DELTA_LINE_HEIGHT + METRIC_DELTA_FOOTER_GAP);
   }
@@ -810,6 +815,7 @@ function emitMetricCardCommands(
       color: theme.colors.textSecondary,
       maxWidth: box.contentWidth,
       lineHeight: METRIC_FOOTER_LINE_HEIGHT,
+      align: 'left',
     });
   }
 
@@ -923,6 +929,7 @@ function emitCalloutIconBadge(
     color: '#ffffff',
     maxWidth: px(diameter),
     lineHeight: px(diameter),
+    align: 'left',
   });
 
   return px(diameter + 8); // badge width + gap
@@ -980,6 +987,7 @@ function emitCalloutCommands(
       color: accentColor,
       maxWidth: px(box.contentWidth - (titleX - box.contentX)),
       lineHeight: CALLOUT_TITLE_LINE_HEIGHT,
+      align: 'left',
     });
     currentY = px(currentY + CALLOUT_TITLE_LINE_HEIGHT + theme.spacing.sm);
   }
@@ -1030,6 +1038,7 @@ function emitCodeBlockCommands(
       color: theme.colors.textSecondary,
       maxWidth: box.contentWidth,
       lineHeight: CALLOUT_TITLE_LINE_HEIGHT,
+      align: 'left',
     });
     currentY = px(currentY + CALLOUT_TITLE_LINE_HEIGHT + theme.spacing.xs);
   }
@@ -1056,6 +1065,7 @@ function emitCodeBlockCommands(
           color: theme.colors.textSecondary,
           maxWidth: lineNumberWidth,
           lineHeight: props.lineHeight,
+          align: 'left',
         });
       }
 
@@ -1070,6 +1080,7 @@ function emitCodeBlockCommands(
         color: theme.colors.text,
         maxWidth: codeMaxWidth,
         lineHeight: props.lineHeight,
+        align: 'left',
       });
     });
   }
@@ -1199,6 +1210,7 @@ function emitDataTableCommands(
       color: theme.colors.textSecondary,
       maxWidth: px(colWidth - TABLE_CELL_PADDING_X * 2),
       lineHeight: px(14),
+      align: col.align,
     });
   }
 
@@ -1238,6 +1250,7 @@ function emitDataTableCommands(
         color: theme.colors.text,
         maxWidth: px(colWidth - TABLE_CELL_PADDING_X * 2),
         lineHeight: px(16),
+        align: col.align,
       });
     }
 
@@ -1392,6 +1405,7 @@ function emitChartCommands(
       color: theme.colors.text,
       maxWidth: px(box.width - props.padding * 2),
       lineHeight: CHART_TITLE_LINE_HEIGHT,
+      align: 'left',
     });
     currentY += CHART_TITLE_LINE_HEIGHT + theme.spacing.xs;
   }
@@ -1456,6 +1470,7 @@ function emitChartCommands(
         color: theme.colors.textSecondary,
         maxWidth: px(28),
         lineHeight: CHART_LABEL_LINE_HEIGHT,
+        align: 'right', // Actually align right so text doesn't overflow left
       });
     }
   }
@@ -1574,12 +1589,13 @@ function emitChartCommands(
       kind: 'fill-text',
       nodeId: box.nodeId,
       text: data.labels[i] ?? '',
-      x: px(plotX + i * segmentW + segmentW / 2 - 20),
+      x: px(plotX + i * segmentW + segmentW / 2),
       y: labelY,
       font: CHART_LABEL_FONT,
       color: theme.colors.textSecondary,
       maxWidth: px(segmentW),
       lineHeight: CHART_LABEL_LINE_HEIGHT,
+      align: 'center',
     });
   }
 
@@ -1609,6 +1625,7 @@ function emitChartCommands(
         color: theme.colors.textSecondary,
         maxWidth: px(120),
         lineHeight: CHART_LABEL_LINE_HEIGHT,
+        align: 'left',
       });
       legendX += 16 + (data.series[s]!.name.length * 7) + 16;
     }

@@ -595,8 +595,7 @@ function runStressTest(): void {
     const targetW = Math.max(380, Math.min(1600, Math.round(resizeStartW + widthOscillation)));
     if (targetW !== canvasW) {
       canvasW = targetW;
-      if (renderer && pipeline) {
-        renderer.resize(canvasW, currentH);
+      if (pipeline) {
         pipeline.resize(canvasW, currentH);
       }
       mWidth.innerHTML = `${canvasW}<span class="metric-unit">px</span>`;

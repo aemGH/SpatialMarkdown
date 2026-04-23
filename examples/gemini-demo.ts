@@ -666,7 +666,7 @@ btnRaw.addEventListener('click', () => {
     canvasWrap.classList.add('hidden');
     rawOutput.classList.add('visible');
     rawOutput.textContent = rawSpatialMarkdown;
-    btnRaw.textContent = 'Canvas';
+    btnRaw.textContent = 'Rendered';
   } else {
     canvasWrap.classList.remove('hidden');
     rawOutput.classList.remove('visible');
@@ -878,7 +878,7 @@ panelResizeHandle.addEventListener('mousedown', (e: MouseEvent) => {
 
 // ─── Init ────────────────────────────────────────────────────────────
 
-// Set initial canvas width — sensible default
+// Set initial width — sensible default
 canvasW = Math.min(900, Math.max(400, Math.floor(canvasWrap.getBoundingClientRect().width - 48)));
 resetPipeline();
 

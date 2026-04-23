@@ -95,6 +95,10 @@ function strokeRectToElement(cmd: StrokeRectCommand, key: string): ReactElement 
 function fillTextToElement(cmd: FillTextCommand, key: string): ReactElement {
   const lines = cmd.text.split('\n');
 
+  let textAnchor: 'start' | 'middle' | 'end' = 'start';
+  if (cmd.align === 'right') textAnchor = 'end';
+  if (cmd.align === 'center') textAnchor = 'middle';
+
   // Single line — simple <text>.
   if (lines.length <= 1) {
     return (
@@ -107,6 +111,7 @@ function fillTextToElement(cmd: FillTextCommand, key: string): ReactElement {
         style={{ font: cmd.font }}
         fill={cmd.color}
         dominantBaseline="text-before-edge"
+        textAnchor={textAnchor}
       >
         {lines[0] ?? ''}
       </text>
@@ -120,6 +125,7 @@ function fillTextToElement(cmd: FillTextCommand, key: string): ReactElement {
       style={{ font: cmd.font }}
       fill={cmd.color}
       dominantBaseline="text-before-edge"
+      textAnchor={textAnchor}
     >
       {lines.map((line, i) => (
         <tspan key={i} x={cmd.x} y={cmd.y + cmd.lineHeight * i}>
