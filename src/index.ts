@@ -11,7 +11,7 @@
  * const pipeline = createPipeline();
  *
  * pipeline.onRender((commands) => {
- *   // Render commands to canvas, React, or SVG
+ *   // Render commands to Canvas or Android
  * });
  *
  * pipeline.feed('<Slide><Heading level={1}>Hello World</Heading></Slide>');

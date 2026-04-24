@@ -1,10 +1,8 @@
 /**
- * @spatial/renderer — Rendering Layer
- *
- * Consumes LayoutBox coordinates. No manual CSS positioning.
+ * @module @spatial/renderer
+ * Barrel export for renderer backends and command builder.
  */
 
-export { buildRenderCommands } from './command-builder';
+export * from './command-builder';
 export * from './canvas/index';
-export * from './react/index';
-export * from './svg/index';
+

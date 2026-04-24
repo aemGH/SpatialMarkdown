@@ -2,7 +2,7 @@
  * Command Builder — Converts LayoutBox tree → flat RenderCommand[].
  *
  * Walks the LayoutBox tree depth-first, emitting renderer-agnostic draw
- * commands that can be consumed by any backend (Canvas, SVG, React).
+ * commands that can be consumed by any backend (Canvas, Android).
  *
  * @module @spatial/renderer/command-builder
  */

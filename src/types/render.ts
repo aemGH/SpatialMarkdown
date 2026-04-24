@@ -6,7 +6,7 @@
 
 import type { Pixels, NodeId, FontDescriptor } from './primitives';
 
-/** Renderer-agnostic draw command — consumed by Canvas, SVG, and React backends. */
+/** Renderer-agnostic draw command — consumed by Canvas and Android backends. */
 export type RenderCommand =
   | FillRectCommand
   | StrokeRectCommand

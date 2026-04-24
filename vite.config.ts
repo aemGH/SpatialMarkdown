@@ -14,27 +14,18 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
-        'react/index': resolve(__dirname, 'src/renderer/react/index.ts'),
         'canvas/index': resolve(__dirname, 'src/renderer/canvas/index.ts'),
-        'svg/index': resolve(__dirname, 'src/renderer/svg/index.ts'),
         'bridge/index': resolve(__dirname, 'src/bridge/index.ts'),
       },
       formats: ['es', 'cjs'],
     },
     rollupOptions: {
       external: [
-        'react',
-        'react-dom',
-        'react/jsx-runtime',
         // NOTE: @chenglou/pretext is NOT external — we ship our fork inline.
         // See src/engine/measurement/pretext-fork/README.md
       ],
       output: {
         preserveModules: false,
-        globals: {
-          react: 'React',
-          'react-dom': 'ReactDOM',
-        },
       },
     },
     target: 'es2022',
