@@ -138,11 +138,16 @@ fun SpatialEngineView(
                         }
                     }, "AndroidSpatialBridge")
                     
-                    // Only load the asset ONCE
-                    if (webViewRef[0] == null) {
-                        webViewRef[0] = this
-                        loadUrl(engineUrl)
-                    }
+                    // Load the asset
+                    webViewRef[0] = this
+                    loadUrl(engineUrl)
+                }
+            },
+            update = { webView ->
+                // The update block is called on recompositions, we don't want to reload the URL here.
+                // We just make sure our ref is still pointing to it
+                if (webViewRef[0] != webView) {
+                    webViewRef[0] = webView
                 }
             },
             onRelease = {
