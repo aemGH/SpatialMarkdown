@@ -112,6 +112,8 @@ Full details in [`specs/architecture.md`](./specs/architecture.md) and
 - **React** (`@spatial-markdown/engine/react`) — `<SpatialView>` component
   + `useSpatialPipeline` hook. Emits SVG-in-React for composability and
   text selection.
+- **Android Kotlin/Compose** (`android/spatial-engine/`) — Jetpack Compose implementation
+  using a Headless JS Engine Bridge. Feeds `RenderCommand` output into a native Android canvas.
 
 ```tsx
 import { SpatialView, useSpatialPipeline } from '@spatial-markdown/engine/react';
