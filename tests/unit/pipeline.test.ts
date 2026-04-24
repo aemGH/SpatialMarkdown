@@ -14,12 +14,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createPipeline } from '../../src/pipeline';
 import type { SpatialPipeline } from '../../src/pipeline';
+import { createNodeCanvasMeasurementContext } from '../../src/engine/measurement/node-canvas-context';
 
 describe('Pipeline Integration', () => {
   let pipeline: SpatialPipeline;
 
   beforeEach(() => {
-    pipeline = createPipeline();
+    pipeline = createPipeline({ measurementContext: createNodeCanvasMeasurementContext() });
   });
 
   afterEach(() => {

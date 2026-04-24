@@ -22,31 +22,19 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createPipeline } from '../../src/pipeline';
 import type { SpatialPipeline } from '../../src/pipeline';
 import type { RenderCommand } from '../../src/types/render';
+import { createNodeCanvasMeasurementContext } from '../../src/engine/measurement/node-canvas-context';
 
-// ─── Preset: compact but covers every major tag ──────────────────────
+describe('SpatialPipeline Integration', () => {
+  let pipeline: SpatialPipeline;
+  let commands: ReadonlyArray<RenderCommand> = [];
 
-const FULL_PRESET = `<Slide>
-  <Heading level={1}>Spatial Markdown Engine</Heading>
-  A high-performance layout engine for LLM streaming output.
-  <Spacer height={16} />
-  <AutoGrid minChildWidth={200} gap={16}>
-    <MetricCard label="Layout" value="<1ms" sentiment="positive" />
-    <MetricCard label="Reflows" value="Zero" sentiment="positive" />
-  </AutoGrid>
-  <Divider />
-  <Callout type="tip" title="Streaming-Safe">
-    Partial tags split across chunks are buffered automatically.
-  </Callout>
-</Slide>`;
-
-// ─── Helper: run the pipeline synchronously and capture commands ─────
-
-function captureCommands(
-  pipeline: SpatialPipeline,
-): ReadonlyArray<RenderCommand> {
-  let captured: ReadonlyArray<RenderCommand> = [];
-  const unsubscribe = pipeline.onRender((commands) => {
-    captured = commands;
+  beforeEach(() => {
+    commands = [];
+    pipeline = createPipeline({ measurementContext: createNodeCanvasMeasurementContext() });
+    pipeline.resize(800, 600);
+    pipeline.onRender((cmds) => {
+      commands = cmds;
+    });
   });
   pipeline.flush();
   unsubscribe();

@@ -35,6 +35,7 @@ declare global {
     SpatialEngine: {
       init(width: number, height: number, themeMode?: 'light' | 'dark'): void;
       feed(text: string): void;
+      flush(): void;
       resize(width: number, height: number): void;
       destroy(): void;
     };

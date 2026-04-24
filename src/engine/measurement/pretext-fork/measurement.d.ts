@@ -12,6 +12,7 @@ export type EngineProfile = {
 };
 export type BreakableFitMode = 'sum-graphemes' | 'segment-prefixes' | 'pair-context';
 export declare function getMeasureContext(): CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+export declare function setMeasureContext(context: any): void;
 export declare function getSegmentMetricCache(font: string): Map<string, SegmentMetrics>;
 export declare function getSegmentMetrics(seg: string, cache: Map<string, SegmentMetrics>): SegmentMetrics;
 export declare function getEngineProfile(): EngineProfile;

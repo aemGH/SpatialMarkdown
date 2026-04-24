@@ -11,6 +11,7 @@ declare global {
     SpatialEngine: {
       init(width: number, height: number, themeMode?: 'light' | 'dark'): void;
       feed(text: string): void;
+      flush(): void;
       resize(width: number, height: number): void;
       destroy(): void;
     };
@@ -59,6 +60,12 @@ declare global {
     resize(width: number, height: number) {
       if (pipeline && typeof pipeline.resize === 'function') {
         pipeline.resize(width, height);
+      }
+    },
+
+    flush() {
+      if (pipeline && typeof pipeline.flush === 'function') {
+        pipeline.flush();
       }
     },
 
