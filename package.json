@@ -48,7 +48,7 @@
     "showcase": "vite --config vite.showcase.config.ts",
     "gemini": "vite --config vite.gemini.config.ts",
     "build": "vite build && npm run build:android && tsc --emitDeclarationOnly",
-    "build:android": "vite build --config vite.android.config.ts",
+    "build:android": "vite build --config vite.android.config.ts && copy dist\\android\\index.js android\\spatial-engine\\src\\main\\assets\\index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:bench": "vitest bench",
