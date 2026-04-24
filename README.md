@@ -1,10 +1,10 @@
 # @spatial-markdown/engine
 
 A high-performance, zero-reflow layout engine for structured documents. Renders
-pixel-perfect Canvas, SVG, or React output at 60fps from a simple tag vocabulary.
+pixel-perfect Canvas, SVG, or Android Jetpack Compose output at 60fps from a simple tag vocabulary.
 
 ```
-Tag vocabulary → AST → Pretext measurement → Geometry → Canvas / SVG / React
+Tag vocabulary -> AST -> Pretext measurement -> Geometry -> Canvas / SVG / Android
 ```
 
 Built on [`@chenglou/pretext`](https://github.com/chenglou/pretext) for DOM-less
@@ -97,7 +97,7 @@ No `flush()`, no re-feed, no special handling. It just works.
 |---|---|---|
 | **Engine** | `src/engine/` | Pretext measurement, constraint solver, geometry calculator. Pure TS, no DOM. |
 | **Parser** | `src/parser/` | Streaming tokenizer (FSM) → incremental AST builder → transform passes. |
-| **Renderer** | `src/renderer/` | Canvas 2D, SVG, React — all consume the same `RenderCommand[]`. |
+| **Renderer** | `src/renderer/` | Canvas 2D, SVG, Android Jetpack Compose — all consume the same `RenderCommand[]`. |
 | **Bridge** | `src/bridge/` | WebSocket + SSE adapters, ring buffer, backpressure, Python SDK types. |
 
 Full details in [`specs/architecture.md`](./specs/architecture.md) and
@@ -109,26 +109,8 @@ Full details in [`specs/architecture.md`](./specs/architecture.md) and
   streaming artifacts. Ships with DPR-aware HiDPI rendering.
 - **SVG** (`@spatial-markdown/engine/svg`) — DOM mode for live apps,
   string mode for SSR / export / clipboard.
-- **React** (`@spatial-markdown/engine/react`) — `<SpatialView>` component
-  + `useSpatialPipeline` hook. Emits SVG-in-React for composability and
-  text selection.
 - **Android Kotlin/Compose** (`android/spatial-engine/`) — Jetpack Compose implementation
-  using a Headless JS Engine Bridge. Feeds `RenderCommand` output into a native Android canvas.
-
-```tsx
-import { SpatialView, useSpatialPipeline } from '@spatial-markdown/engine/react';
-
-function Demo() {
-  const { commands, pipeline } = useSpatialPipeline();
-  useEffect(() => {
-    if (!pipeline) return;
-    pipeline.resize(800, 600);
-    pipeline.feed('<Slide><Heading level={1}>Hi</Heading></Slide>');
-    pipeline.flush();
-  }, [pipeline]);
-  return <SpatialView commands={commands} width={800} height={600} />;
-}
-```
+  using a high-performance embedded QuickJS Engine. Feeds `RenderCommand` output into a native Android canvas at 60fps with zero layout shift.
 
 ## Tag vocabulary
 
@@ -212,8 +194,6 @@ Pretext runs in Node, so the engine does too.
   [`node-canvas`](https://github.com/Automattic/node-canvas) (`canvas` package)
   for platform-accurate font metrics on the server. The engine's test suite
   already uses this approach.
-- **React renderer** renders through `renderToString` / `renderToStaticMarkup`
-  unchanged — it emits SVG, so the hydration surface is tiny.
 
 ```ts
 // server.ts
@@ -262,7 +242,7 @@ engine and renders to canvas in real time. Great for feeling what a
 ## Status & scope
 
 **v0.1 — ready for internal tools, dashboards, and demos.** 173 tests pass.
-Typecheck clean in strict mode. Canvas, SVG, and React renderers ship. Build
+Typecheck clean in strict mode. Canvas, SVG, and Android native renderers ship. Build
 produces ESM + CJS + `.d.ts` for all subpaths. New in this release: synchronous
 `render()` entry point, four theme presets + `createTheme()`, `onError`
 subscriber, SSR-ready SVG string renderer.

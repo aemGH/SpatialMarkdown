@@ -21,7 +21,7 @@ A high-performance TypeScript layout engine that renders LLM streaming output as
 | Types | `src/types/` | Shared type declarations (branded types, discriminated unions, theme) |
 | Parser | `src/parser/` | Streaming tokenizer (FSM) → incremental AST builder → transform passes |
 | Engine | `src/engine/` | Constraint solver, pretext measurement, geometry calculator. Pure TS, no DOM. |
-| Renderer | `src/renderer/` | Canvas 2D, React, SVG, Android Jetpack Compose backends — all consume `RenderCommand[]` |
+| Renderer | `src/renderer/` | Canvas 2D, SVG, Android Jetpack Compose backends — all consume `RenderCommand[]` |
 | Bridge | `src/bridge/` | WebSocket/SSE adapters, ring buffer, backpressure controller, Android JS Interface adapter (`src/bridge/quickjs-adapter/`) |
 | Theme | `src/theme/` | Theme extraction from URLs/HTML, mapping to `ThemeConfig` |
 | Pipeline | `src/pipeline.ts` | Top-level orchestrator wiring all layers |
@@ -56,4 +56,4 @@ pipeline.resize(width, height);
 pipeline.destroy();
 ```
 
-**Subpath exports**: `@spatial-markdown/engine/canvas`, `/react`, `/svg`, `/bridge`, `/types`.
+**Subpath exports**: `@spatial-markdown/engine/canvas`, `/svg`, `/bridge`, `/types`.
