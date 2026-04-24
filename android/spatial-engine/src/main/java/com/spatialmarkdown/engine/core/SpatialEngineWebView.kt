@@ -92,12 +92,13 @@ fun SpatialEngineView(
     Box(modifier = modifier) {
         // Headless JS Engine Environment
         AndroidView(
-            // Use 1.dp and 0 alpha instead of 0.dp. 
-            // 0.dp WebViews often have requestAnimationFrame suspended by Android!
-            modifier = Modifier.size(1.dp).alpha(0.01f), 
+            // Use 1.dp and 1f alpha. 
+            // 0.dp or 0f alpha WebViews often have requestAnimationFrame suspended by Android!
+            modifier = Modifier.size(1.dp).alpha(1f), 
             factory = { context ->
                 WebView(context).apply {
                     settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
                     
                     // Pipe JS Console logs to Android Logcat so we can see TS Engine errors!
                     webChromeClient = object : WebChromeClient() {
@@ -109,11 +110,16 @@ fun SpatialEngineView(
 
                     // ONLY notify the app that the controller is ready ONCE the HTML/JS has fully loaded.
                     webViewClient = object : WebViewClient() {
+                        private var isReady = false
+                        
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
-                            // Initialize engine before returning controller
-                            evaluateJavascript("if(window.SpatialEngine) window.SpatialEngine.init($screenWidthDp, $screenHeightDp, '$themeModeString');", null)
-                            onControllerReady(SpatialEngineController { webViewRef[0] })
+                            if (!isReady) {
+                                isReady = true
+                                // Initialize engine before returning controller
+                                evaluateJavascript("if(window.SpatialEngine) window.SpatialEngine.init($screenWidthDp, $screenHeightDp, '$themeModeString');", null)
+                                onControllerReady(SpatialEngineController { webViewRef[0] })
+                            }
                         }
                     }
                     
