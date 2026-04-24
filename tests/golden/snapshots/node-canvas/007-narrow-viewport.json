@@ -1,0 +1,49 @@
+[
+  {
+    "kind": "fill-rect",
+    "nodeId": 1,
+    "x": 0,
+    "y": 0,
+    "width": 400,
+    "height": 800,
+    "color": "#FFFFFF",
+    "borderRadius": 0
+  },
+  {
+    "kind": "clip-rect",
+    "nodeId": 1,
+    "x": 0,
+    "y": 0,
+    "width": 400,
+    "height": 800,
+    "borderRadius": 0
+  },
+  {
+    "kind": "fill-text",
+    "nodeId": 2,
+    "text": "Responsive ",
+    "x": 32,
+    "y": 32,
+    "font": "800 42px Inter",
+    "color": "#4C6EF5",
+    "maxWidth": 336,
+    "lineHeight": 46,
+    "align": "left"
+  },
+  {
+    "kind": "fill-text",
+    "nodeId": 2,
+    "text": "Headline",
+    "x": 32,
+    "y": 78,
+    "font": "800 42px Inter",
+    "color": "#4C6EF5",
+    "maxWidth": 336,
+    "lineHeight": 46,
+    "align": "left"
+  },
+  {
+    "kind": "restore-clip",
+    "nodeId": 1
+  }
+]

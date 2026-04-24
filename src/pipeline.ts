@@ -50,6 +50,10 @@ import type { ConstraintSolver } from './engine/constraints/index';
 import { createGeometryCalculator } from './engine/geometry/index';
 import type { GeometryCalculator } from './engine/geometry/index';
 
+// Measurement context injection (forked pretext)
+import { setMeasureContext } from './engine/measurement/pretext-fork/measurement.js';
+import { autoDetectMeasurementContext } from './engine/measurement/auto-detect';
+
 // Renderer layer
 import { buildRenderCommands } from './renderer/command-builder';
 
@@ -150,6 +154,11 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
   const config: EngineConfig = partialConfig !== undefined
     ? mergeConfig(partialConfig)
     : mergeConfig({});
+
+  // ── Inject measurement context into forked pretext ─────────────
+  //    Must happen before any measurement call.
+  const measureCtx = autoDetectMeasurementContext(config.measurementContext);
+  setMeasureContext(measureCtx);
 
   // ── Instantiate pipeline stages ────────────────────────────────
 

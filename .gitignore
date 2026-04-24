@@ -64,6 +64,8 @@ ehthumbs.db
 # These describe HOW the project was built, not HOW to use it.
 # Product documentation lives in README.md, LICENSE, and specs/.
 project-manifest.md
+AGENTS.md
+AI_README.md
 
 # ---- Scratch / personal notes -------------------------------------------
 scratch/
@@ -71,3 +73,4 @@ notes/
 TODO.md
 NOTES.md
 *.scratch.*
+test-json.cjs

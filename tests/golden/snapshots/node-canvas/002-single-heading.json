@@ -1,0 +1,37 @@
+[
+  {
+    "kind": "fill-rect",
+    "nodeId": 1,
+    "x": 0,
+    "y": 0,
+    "width": 800,
+    "height": 600,
+    "color": "#FFFFFF",
+    "borderRadius": 0
+  },
+  {
+    "kind": "clip-rect",
+    "nodeId": 1,
+    "x": 0,
+    "y": 0,
+    "width": 800,
+    "height": 600,
+    "borderRadius": 0
+  },
+  {
+    "kind": "fill-text",
+    "nodeId": 2,
+    "text": "Hello",
+    "x": 32,
+    "y": 32,
+    "font": "800 42px Inter",
+    "color": "#4C6EF5",
+    "maxWidth": 736,
+    "lineHeight": 46,
+    "align": "left"
+  },
+  {
+    "kind": "restore-clip",
+    "nodeId": 1
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "kind": "fill-rect",
+    "nodeId": 1,
+    "x": 0,
+    "y": 0,
+    "width": 800,
+    "height": 600,
+    "color": "#FFFFFF",
+    "borderRadius": 0
+  },
+  {
+    "kind": "clip-rect",
+    "nodeId": 1,
+    "x": 0,
+    "y": 0,
+    "width": 800,
+    "height": 600,
+    "borderRadius": 0
+  },
+  {
+    "kind": "draw-line",
+    "nodeId": 3,
+    "x1": 32,
+    "y1": 72.5,
+    "x2": 768,
+    "y2": 72.5,
+    "color": "#DEE2E6",
+    "lineWidth": 1
+  },
+  {
+    "kind": "restore-clip",
+    "nodeId": 1
+  }
+]

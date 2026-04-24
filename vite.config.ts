@@ -26,7 +26,8 @@ export default defineConfig({
         'react',
         'react-dom',
         'react/jsx-runtime',
-        '@chenglou/pretext',
+        // NOTE: @chenglou/pretext is NOT external — we ship our fork inline.
+        // See src/engine/measurement/pretext-fork/README.md
       ],
       output: {
         preserveModules: false,
@@ -48,6 +49,9 @@ export default defineConfig({
       '@spatial/engine': resolve(__dirname, 'src/engine'),
       '@spatial/renderer': resolve(__dirname, 'src/renderer'),
       '@spatial/bridge': resolve(__dirname, 'src/bridge'),
+      // Fork of @chenglou/pretext with injectable MeasurementContext.
+      // See src/engine/measurement/pretext-fork/README.md
+      '@chenglou/pretext': resolve(__dirname, 'src/engine/measurement/pretext-fork/layout.js'),
     },
   },
 });

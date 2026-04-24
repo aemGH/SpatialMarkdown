@@ -32,4 +32,6 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation("androidx.compose.foundation:foundation:1.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    // QuickJS embedded JS engine — replaces WebView for Layer A
+    implementation("wang.harlon.quickjs:wrapper-android:3.2.3")
 }

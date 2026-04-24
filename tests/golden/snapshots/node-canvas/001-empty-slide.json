@@ -1,0 +1,25 @@
+[
+  {
+    "kind": "fill-rect",
+    "nodeId": 1,
+    "x": 0,
+    "y": 0,
+    "width": 800,
+    "height": 600,
+    "color": "#FFFFFF",
+    "borderRadius": 0
+  },
+  {
+    "kind": "clip-rect",
+    "nodeId": 1,
+    "x": 0,
+    "y": 0,
+    "width": 800,
+    "height": 600,
+    "borderRadius": 0
+  },
+  {
+    "kind": "restore-clip",
+    "nodeId": 1
+  }
+]

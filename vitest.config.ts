@@ -3,7 +3,11 @@ import { resolve } from 'path';
 
 export default defineConfig({
   test: {
-    include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
+    include: [
+      'tests/unit/**/*.test.ts',
+      'tests/integration/**/*.test.ts',
+      'tests/golden/**/*.test.ts',
+    ],
 
     benchmark: {
       include: ['tests/benchmarks/**/*.bench.ts'],
@@ -38,6 +42,7 @@ export default defineConfig({
       '@spatial/engine': resolve(__dirname, 'src/engine'),
       '@spatial/renderer': resolve(__dirname, 'src/renderer'),
       '@spatial/bridge': resolve(__dirname, 'src/bridge'),
+      '@chenglou/pretext': resolve(__dirname, 'src/engine/measurement/pretext-fork/layout.js'),
     },
   },
 });

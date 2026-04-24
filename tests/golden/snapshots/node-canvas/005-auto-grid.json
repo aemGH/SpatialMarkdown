@@ -1,0 +1,141 @@
+[
+  {
+    "kind": "fill-rect",
+    "nodeId": 1,
+    "x": 0,
+    "y": 0,
+    "width": 800,
+    "height": 600,
+    "color": "#FFFFFF",
+    "borderRadius": 0
+  },
+  {
+    "kind": "clip-rect",
+    "nodeId": 1,
+    "x": 0,
+    "y": 0,
+    "width": 800,
+    "height": 600,
+    "borderRadius": 0
+  },
+  {
+    "kind": "fill-rect",
+    "nodeId": 3,
+    "x": 32,
+    "y": 32,
+    "width": 234.6667,
+    "height": 100,
+    "color": "#F8F9FA",
+    "borderRadius": 8
+  },
+  {
+    "kind": "stroke-rect",
+    "nodeId": 3,
+    "x": 32,
+    "y": 32,
+    "width": 234.6667,
+    "height": 100,
+    "color": "#DEE2E6",
+    "lineWidth": 1,
+    "borderRadius": 8
+  },
+  {
+    "kind": "clip-rect",
+    "nodeId": 3,
+    "x": 32,
+    "y": 32,
+    "width": 234.6667,
+    "height": 100,
+    "borderRadius": 8
+  },
+  {
+    "kind": "fill-text",
+    "nodeId": 3,
+    "text": "LAYOUT",
+    "x": 52,
+    "y": 52,
+    "font": "600 12px Inter",
+    "color": "#868E96",
+    "maxWidth": 194.6667,
+    "lineHeight": 16,
+    "align": "left"
+  },
+  {
+    "kind": "fill-text",
+    "nodeId": 3,
+    "text": "<1ms",
+    "x": 52,
+    "y": 76,
+    "font": "800 32px Inter",
+    "color": "#212529",
+    "maxWidth": 194.6667,
+    "lineHeight": 40,
+    "align": "left"
+  },
+  {
+    "kind": "restore-clip",
+    "nodeId": 3
+  },
+  {
+    "kind": "fill-rect",
+    "nodeId": 4,
+    "x": 282.6667,
+    "y": 32,
+    "width": 234.6667,
+    "height": 100,
+    "color": "#F8F9FA",
+    "borderRadius": 8
+  },
+  {
+    "kind": "stroke-rect",
+    "nodeId": 4,
+    "x": 282.6667,
+    "y": 32,
+    "width": 234.6667,
+    "height": 100,
+    "color": "#DEE2E6",
+    "lineWidth": 1,
+    "borderRadius": 8
+  },
+  {
+    "kind": "clip-rect",
+    "nodeId": 4,
+    "x": 282.6667,
+    "y": 32,
+    "width": 234.6667,
+    "height": 100,
+    "borderRadius": 8
+  },
+  {
+    "kind": "fill-text",
+    "nodeId": 4,
+    "text": "REFLOWS",
+    "x": 302.6667,
+    "y": 52,
+    "font": "600 12px Inter",
+    "color": "#868E96",
+    "maxWidth": 194.6667,
+    "lineHeight": 16,
+    "align": "left"
+  },
+  {
+    "kind": "fill-text",
+    "nodeId": 4,
+    "text": "Zero",
+    "x": 302.6667,
+    "y": 76,
+    "font": "800 32px Inter",
+    "color": "#212529",
+    "maxWidth": 194.6667,
+    "lineHeight": 40,
+    "align": "left"
+  },
+  {
+    "kind": "restore-clip",
+    "nodeId": 4
+  },
+  {
+    "kind": "restore-clip",
+    "nodeId": 1
+  }
+]
