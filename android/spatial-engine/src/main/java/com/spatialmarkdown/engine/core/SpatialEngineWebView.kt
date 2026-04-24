@@ -87,7 +87,7 @@ fun SpatialEngineView(
     val screenWidthDp = configuration.screenWidthDp.toFloat()
     val screenHeightDp = configuration.screenHeightDp.toFloat()
     
-    val themeModeString = if (isDarkTheme) "dark" else "light"
+    val isReady = remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
         // Headless JS Engine Environment
@@ -110,14 +110,13 @@ fun SpatialEngineView(
 
                     // ONLY notify the app that the controller is ready ONCE the HTML/JS has fully loaded.
                     webViewClient = object : WebViewClient() {
-                        private var isReady = false
-                        
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
-                            if (!isReady) {
-                                isReady = true
+                            if (!isReady.value) {
+                                isReady.value = true
+                                val themeString = if (isDarkTheme) "dark" else "light"
                                 // Initialize engine before returning controller
-                                evaluateJavascript("if(window.SpatialEngine) window.SpatialEngine.init($screenWidthDp, $screenHeightDp, '$themeModeString');", null)
+                                evaluateJavascript("if(window.SpatialEngine) window.SpatialEngine.init($screenWidthDp, $screenHeightDp, '$themeString');", null)
                                 onControllerReady(SpatialEngineController { webViewRef[0] })
                             }
                         }
@@ -139,8 +138,11 @@ fun SpatialEngineView(
                         }
                     }, "AndroidSpatialBridge")
                     
-                    webViewRef[0] = this
-                    loadUrl(engineUrl)
+                    // Only load the asset ONCE
+                    if (webViewRef[0] == null) {
+                        webViewRef[0] = this
+                        loadUrl(engineUrl)
+                    }
                 }
             },
             onRelease = {
