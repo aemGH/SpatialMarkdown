@@ -236,8 +236,10 @@ src/
 │   │   ├── ws-adapter.ts      # WebSocket adapter
 │   │   ├── stream-protocol.ts # JSON message serialization
 │   │   └── index.ts
-│   └── python-adapter/
+│   ├── python-adapter/
 │       ├── python-sdk-types.ts # TypeScript types mirroring Python SDK contract
+│       └── index.ts
+│   └── quickjs-adapter/     # Android JS Interface adapter for embedded QuickJS
 │       └── index.ts
 │
 ├── theme/
