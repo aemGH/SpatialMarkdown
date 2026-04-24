@@ -223,10 +223,7 @@ Run `npm run test:bench` to reproduce on your machine.
 # Showcase — stress-test theater (streaming, resize, zero-reflow proof)
 npm run showcase
 
-# Preset gallery (pick from 5 canned documents; see streaming simulation)
-npm run demo
-
-# Gemini-powered live chat → canvas (bring your own API key)
+# Gemini-powered live chat + canvas (bring your own API key)
 npm run gemini
 ```
 
@@ -264,7 +261,6 @@ subscriber, SSR-ready SVG string renderer.
 ```
 npm run dev           # library dev mode (Vite)
 npm run showcase      # stress-test showcase demo
-npm run demo          # preset gallery demo
 npm run gemini        # Gemini live chat demo
 npm run build         # ESM + CJS + .d.ts to dist/
 npm test              # 173 unit + integration tests
