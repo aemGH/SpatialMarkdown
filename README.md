@@ -1,10 +1,10 @@
 # @spatial-markdown/engine
 
 A high-performance, zero-reflow layout engine for structured documents. Renders
-pixel-perfect Canvas, SVG, or Android Jetpack Compose output at 60fps from a simple tag vocabulary.
+pixel-perfect Canvas or Android Jetpack Compose output at 60fps from a simple tag vocabulary.
 
 ```
-Tag vocabulary -> AST -> Pretext measurement -> Geometry -> Canvas / SVG / Android
+Tag vocabulary -> AST -> Pretext measurement -> Geometry -> Canvas / Android
 ```
 
 Built on [`@chenglou/pretext`](https://github.com/chenglou/pretext) for DOM-less
@@ -54,7 +54,6 @@ layout without touching CSS, it fits:
 
 - **Dashboards** — metric grids, data tables, charts with guaranteed alignment.
 - **Slide decks & presentations** — `<Slide>` is a first-class content frame.
-- **Report generation** — render to SVG server-side, export as PDF or image.
 - **Document rendering** — long-form prose with headings, quotes, callouts, code.
 - **Data visualization** — `<Chart>` + `<DataTable>` on a pretext-measured grid.
 - **LLM streaming UIs** — incremental parsing means partial model output renders
@@ -97,7 +96,7 @@ No `flush()`, no re-feed, no special handling. It just works.
 |---|---|---|
 | **Engine** | `src/engine/` | Pretext measurement, constraint solver, geometry calculator. Pure TS, no DOM. |
 | **Parser** | `src/parser/` | Streaming tokenizer (FSM) → incremental AST builder → transform passes. |
-| **Renderer** | `src/renderer/` | Canvas 2D, SVG, Android Jetpack Compose — all consume the same `RenderCommand[]`. |
+| **Renderer** | `src/renderer/` | Canvas 2D, Android Jetpack Compose — all consume the same `RenderCommand[]`. |
 | **Bridge** | `src/bridge/` | WebSocket + SSE adapters, ring buffer, backpressure, Python SDK types. |
 
 Full details in [`specs/architecture.md`](./specs/architecture.md) and
@@ -107,8 +106,6 @@ Full details in [`specs/architecture.md`](./specs/architecture.md) and
 
 - **Canvas 2D** (`@spatial-markdown/engine/canvas`) — highest perf, best for
   streaming artifacts. Ships with DPR-aware HiDPI rendering.
-- **SVG** (`@spatial-markdown/engine/svg`) — DOM mode for live apps,
-  string mode for SSR / export / clipboard.
 - **Android Kotlin/Compose** (`android/spatial-engine/`) — Jetpack Compose implementation
   using a high-performance embedded QuickJS Engine. Feeds `RenderCommand` output into a native Android canvas at 60fps with zero layout shift.
 
@@ -187,9 +184,6 @@ silently recovered from. With one, you get full control over error reporting.
 
 Pretext runs in Node, so the engine does too.
 
-- **SVG string renderer** works out of the box server-side. Call
-  `createSVGRenderer().renderToString()` and write the output to a file,
-  HTTP response, or PDF converter. No JSDOM required.
 - **Canvas measurement** can use
   [`node-canvas`](https://github.com/Automattic/node-canvas) (`canvas` package)
   for platform-accurate font metrics on the server. The engine's test suite
@@ -197,12 +191,10 @@ Pretext runs in Node, so the engine does too.
 
 ```ts
 // server.ts
-import { render, px } from '@spatial-markdown/engine';
-import { createSVGRenderer } from '@spatial-markdown/engine/svg';
+import { render } from '@spatial-markdown/engine';
 
 const commands = render(markup, { width: 1200, height: 630 });
-const svg = createSVGRenderer().renderToString(commands, px(1200), px(630));
-response.setHeader('content-type', 'image/svg+xml').send(svg);
+// Pass `commands` to your Android or Canvas client
 ```
 
 ## Performance
@@ -239,10 +231,10 @@ engine and renders to canvas in real time. Great for feeling what a
 ## Status & scope
 
 **v0.1 — ready for internal tools, dashboards, and demos.** 173 tests pass.
-Typecheck clean in strict mode. Canvas, SVG, and Android native renderers ship. Build
+Typecheck clean in strict mode. Canvas and Android native renderers ship. Build
 produces ESM + CJS + `.d.ts` for all subpaths. New in this release: synchronous
 `render()` entry point, four theme presets + `createTheme()`, `onError`
-subscriber, SSR-ready SVG string renderer.
+subscriber.
 
 **Not yet production-ready for public clients:**
 - Accessibility tree (canvas rendering has no a11y by default — on roadmap

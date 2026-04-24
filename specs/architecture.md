@@ -71,7 +71,7 @@
 | 6 | Measurement | Constrained text nodes | `Map<NodeId, MeasurementResult>` | < 2ms | `src/engine/measurement/` |
 | 7 | Geometry Calculator | Measurements + constraints | `LayoutBox[]` | < 1ms | `src/engine/geometry/` |
 | 8 | Render Cmd Builder | `LayoutBox[]` | `RenderCommand[]` | < 0.5ms | `src/renderer/command-builder.ts` |
-| 9 | Renderer | `RenderCommand[]` | Pixels (Canvas), SVG, Android Jetpack Compose | < 8ms | `src/renderer/{canvas,svg}/` and `android/` |
+| 9 | Renderer | `RenderCommand[]` | Pixels (Canvas), Android Jetpack Compose | < 8ms | `src/renderer/canvas/` and `android/` |
 
 **Key details:**
 
@@ -108,7 +108,7 @@ types/ ← No dependencies. Pure type declarations.
   ├──► engine/ (constraints/, geometry/, measurement/)
   ├──► bridge/ (buffer/, streaming/, python-adapter/)
   │
-  └──► renderer/ (command-builder, canvas/, svg/)
+  └──► renderer/ (command-builder, canvas/)
           │
           ▼
       pipeline.ts ← Top-level orchestrator (wires all layers)
@@ -218,10 +218,6 @@ src/
 │   ├── canvas/
 │   │   ├── canvas-renderer.ts # Canvas 2D backend (HiDPI-aware)
 │   │   └── index.ts
-│   └── svg/
-│       ├── svg-renderer.ts    # SVG DOM + string export
-│       └── index.ts
-│
 ├── bridge/
 │   ├── buffer/
 │   │   ├── ring-buffer.ts     # Fixed-size ring buffer (FIFO)
