@@ -25,6 +25,11 @@
       "import": "./dist/bridge/index.js",
       "require": "./dist/bridge/index.cjs"
     },
+    "./ssr": {
+      "types": "./dist/ssr/index.d.ts",
+      "import": "./dist/ssr/index.js",
+      "require": "./dist/ssr/index.cjs"
+    },
     "./types": {
       "types": "./dist/types/index.d.ts"
     }

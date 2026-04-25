@@ -1,4 +1,6 @@
 import { createPipeline } from '../../pipeline';
+import type { SpatialPipeline } from '../../pipeline';
+import type { RenderCommand } from '../../types/render';
 import { darkTheme } from '../../types/theme';
 
 declare global {
@@ -20,7 +22,8 @@ declare global {
 
 (() => {
   // Store the active pipeline instance
-  let pipeline: any = null;
+  let pipeline: SpatialPipeline | null = null;
+  let unsubscribeRender: (() => void) | null = null;
 
   window.SpatialEngine = {
     init(width: number, height: number, themeMode: 'light' | 'dark' = 'light') {
@@ -33,24 +36,20 @@ declare global {
       pipeline = createPipeline(config);
 
       // Initialize dimensions
-      if (typeof pipeline.resize === 'function') {
-        pipeline.resize(width, height);
-      }
+      pipeline.resize(width, height);
 
       // Subscribe to render events to push JSON strings back to Kotlin
-      if (typeof pipeline.onRender === 'function') {
-        pipeline.onRender((commands: any) => {
-          if (window.AndroidSpatialBridge) {
-            window.AndroidSpatialBridge.onRenderCommands(JSON.stringify(commands));
-          } else {
-            console.warn('AndroidSpatialBridge interface is not attached to window.');
-          }
-        });
-      }
+      unsubscribeRender = pipeline.onRender((commands: ReadonlyArray<RenderCommand>) => {
+        if (window.AndroidSpatialBridge) {
+          window.AndroidSpatialBridge.onRenderCommands(JSON.stringify(commands));
+        } else {
+          console.warn('AndroidSpatialBridge interface is not attached to window.');
+        }
+      });
     },
 
     feed(text: string) {
-      if (pipeline && typeof pipeline.feed === 'function') {
+      if (pipeline !== null) {
         pipeline.feed(text);
       } else {
         console.warn('SpatialEngine: Pipeline not initialized. Call init() first.');
@@ -58,19 +57,23 @@ declare global {
     },
 
     resize(width: number, height: number) {
-      if (pipeline && typeof pipeline.resize === 'function') {
+      if (pipeline !== null) {
         pipeline.resize(width, height);
       }
     },
 
     flush() {
-      if (pipeline && typeof pipeline.flush === 'function') {
+      if (pipeline !== null) {
         pipeline.flush();
       }
     },
 
     destroy() {
-      if (pipeline && typeof pipeline.destroy === 'function') {
+      if (unsubscribeRender !== null) {
+        unsubscribeRender();
+        unsubscribeRender = null;
+      }
+      if (pipeline !== null) {
         pipeline.destroy();
       }
       pipeline = null;

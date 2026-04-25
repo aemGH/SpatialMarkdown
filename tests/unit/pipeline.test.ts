@@ -12,9 +12,11 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createPipeline } from '../../src/pipeline';
+import { createPipeline, render } from '../../src/pipeline';
 import type { SpatialPipeline } from '../../src/pipeline';
-import { createNodeCanvasMeasurementContext } from '../../src/engine/measurement/node-canvas-context';
+import { createNodeCanvasMeasurementContext } from '../../src/ssr/index';
+import { timestamp } from '../../src/types/primitives';
+import type { StreamToken } from '../../src/types/stream';
 
 describe('Pipeline Integration', () => {
   let pipeline: SpatialPipeline;
@@ -168,6 +170,76 @@ describe('Pipeline Integration', () => {
           resolve();
         }, 50);
       });
+    });
+
+    it('should accept StreamToken streams from bridge adapters', async () => {
+      const chunks: StreamToken[] = [
+        { kind: 'stream-token', text: '<Slide>', offset: 0, timestamp: timestamp(Date.now()), isFinal: false },
+        { kind: 'stream-token', text: 'Bridge content', offset: 7, timestamp: timestamp(Date.now()), isFinal: false },
+        { kind: 'stream-token', text: '</Slide>', offset: 21, timestamp: timestamp(Date.now()), isFinal: true },
+      ];
+
+      const stream = new ReadableStream<StreamToken>({
+        start(controller) {
+          for (const chunk of chunks) {
+            controller.enqueue(chunk);
+          }
+          controller.close();
+        },
+      });
+
+      pipeline.feedStream(stream);
+
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const doc = pipeline.getDocument();
+      expect(doc.children.length).toBe(1);
+      expect(doc.children[0]!.kind).toBe('slide');
+    });
+
+    it('should signal pause/resume when stream buffer crosses watermarks', async () => {
+      pipeline.destroy();
+      pipeline = createPipeline({
+        measurementContext: createNodeCanvasMeasurementContext(),
+        streamBufferCapacity: 2,
+        backpressureHighWatermark: 0.5,
+        backpressureLowWatermark: 0.25,
+      });
+
+      const events: string[] = [];
+      const stream = new ReadableStream<string>({
+        start(controller) {
+          controller.enqueue('<Slide>');
+          controller.enqueue('A');
+          controller.enqueue('B');
+          controller.enqueue('C');
+          controller.enqueue('</Slide>');
+          controller.close();
+        },
+      });
+
+      pipeline.feedStream(stream, {
+        onPause: () => { events.push('pause'); },
+        onResume: () => { events.push('resume'); },
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      expect(events).toContain('pause');
+      expect(events).toContain('resume');
+      expect(events.indexOf('pause')).toBeLessThan(events.indexOf('resume'));
+    });
+  });
+
+  describe('SSR measurement setup', () => {
+    it('should render synchronously in Node with an explicit measurement context', () => {
+      const commands = render('<Slide><Heading level={1}>SSR</Heading></Slide>', {
+        width: 800,
+        height: 600,
+        measurementContext: createNodeCanvasMeasurementContext(),
+      });
+
+      expect(commands.length).toBeGreaterThan(0);
     });
   });
 

@@ -192,10 +192,22 @@ Pretext runs in Node, so the engine does too.
 ```ts
 // server.ts
 import { render } from '@spatial-markdown/engine';
+import { createNodeCanvasMeasurementContext } from '@spatial-markdown/engine/ssr';
 
-const commands = render(markup, { width: 1200, height: 630 });
+const measurementContext = createNodeCanvasMeasurementContext();
+
+const commands = render(markup, {
+  width: 1200,
+  height: 630,
+  measurementContext,
+});
 // Pass `commands` to your Android or Canvas client
 ```
+
+The SSR measurement helper lives on the dedicated `/ssr` subpath so browser
+bundles do not import Node built-ins or the optional `canvas` package. If you
+use SSR, install `canvas` in your server project and pass the measurement
+context explicitly.
 
 ## Performance
 

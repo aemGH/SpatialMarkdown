@@ -11,8 +11,12 @@ export type EngineProfile = {
     preferEarlySoftHyphenBreak: boolean;
 };
 export type BreakableFitMode = 'sum-graphemes' | 'segment-prefixes' | 'pair-context';
+export type PretextMeasureContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | {
+    measureText(text: string): TextMetrics | { width: number };
+    font: string;
+};
 export declare function getMeasureContext(): CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
-export declare function setMeasureContext(context: any): void;
+export declare function setMeasureContext(context: PretextMeasureContext): void;
 export declare function getSegmentMetricCache(font: string): Map<string, SegmentMetrics>;
 export declare function getSegmentMetrics(seg: string, cache: Map<string, SegmentMetrics>): SegmentMetrics;
 export declare function getEngineProfile(): EngineProfile;

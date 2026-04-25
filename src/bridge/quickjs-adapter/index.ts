@@ -18,6 +18,9 @@
  */
 
 import { createPipeline } from '../../pipeline';
+import type { SpatialPipeline } from '../../pipeline';
+import type { EngineConfig } from '../../config';
+import type { RenderCommand } from '../../types/render';
 import { darkTheme } from '../../types/theme';
 import { setMeasureContext } from '../../engine/measurement/pretext-fork/measurement.js';
 import type { MeasurementContext } from '../../engine/measurement/measurement-context';
@@ -71,30 +74,32 @@ function createPaintMeasurementContext(): MeasurementContext {
 // ─── Engine bootstrap ──────────────────────────────────────────────
 
 (() => {
-  let pipeline: any = null;
-  let flushTimer: any = null;
+  let pipeline: SpatialPipeline | null = null;
+  let unsubscribeRender: (() => void) | null = null;
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
   const FLUSH_DELAY = 250;
 
-  function scheduleFlush() {
-    if (flushTimer) clearTimeout(flushTimer);
+  function scheduleFlush(): void {
+    if (flushTimer !== null) clearTimeout(flushTimer);
     flushTimer = setTimeout(() => {
       flushTimer = null;
-      if (pipeline && typeof pipeline.flush === 'function') {
+      if (pipeline !== null) {
         pipeline.flush();
       }
     }, FLUSH_DELAY);
   }
 
   window.SpatialEngine = {
-    init(e, n, i = 'light') {
-      if (pipeline) this.destroy();
+    init(width: number, height: number, themeMode: 'light' | 'dark' = 'light') {
+      if (pipeline !== null) this.destroy();
       const measureCtx = createPaintMeasurementContext();
       setMeasureContext(measureCtx);
-      const config: any = { measurementContext: measureCtx };
-      if (i === 'dark') config.theme = darkTheme;
+      const config: Partial<EngineConfig> = themeMode === 'dark'
+        ? { measurementContext: measureCtx, theme: darkTheme }
+        : { measurementContext: measureCtx };
       pipeline = createPipeline(config);
-      pipeline.resize(e, n);
-      pipeline.onRender((commands: any) => {
+      pipeline.resize(width, height);
+      unsubscribeRender = pipeline.onRender((commands: ReadonlyArray<RenderCommand>) => {
         if (window.AndroidSpatialBridge) {
           window.AndroidSpatialBridge.onRenderCommands(JSON.stringify(commands));
         } else {
@@ -104,7 +109,7 @@ function createPaintMeasurementContext(): MeasurementContext {
     },
 
     feed(text: string) {
-      if (pipeline && typeof pipeline.feed === 'function') {
+      if (pipeline !== null) {
         pipeline.feed(text);
         scheduleFlush();
       } else {
@@ -113,27 +118,31 @@ function createPaintMeasurementContext(): MeasurementContext {
     },
 
     resize(width: number, height: number) {
-      if (pipeline && typeof pipeline.resize === 'function') {
+      if (pipeline !== null) {
         pipeline.resize(width, height);
       }
     },
 
     flush() {
-      if (flushTimer) {
+      if (flushTimer !== null) {
         clearTimeout(flushTimer);
         flushTimer = null;
       }
-      if (pipeline && typeof pipeline.flush === 'function') {
+      if (pipeline !== null) {
         pipeline.flush();
       }
     },
 
     destroy() {
-      if (flushTimer) {
+      if (flushTimer !== null) {
         clearTimeout(flushTimer);
         flushTimer = null;
       }
-      if (pipeline && typeof pipeline.destroy === 'function') {
+      if (unsubscribeRender !== null) {
+        unsubscribeRender();
+        unsubscribeRender = null;
+      }
+      if (pipeline !== null) {
         pipeline.destroy();
       }
       pipeline = null;

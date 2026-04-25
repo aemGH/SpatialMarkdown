@@ -16,11 +16,14 @@ export default defineConfig({
         index: resolve(__dirname, 'src/index.ts'),
         'canvas/index': resolve(__dirname, 'src/renderer/canvas/index.ts'),
         'bridge/index': resolve(__dirname, 'src/bridge/index.ts'),
+        'ssr/index': resolve(__dirname, 'src/ssr/index.ts'),
       },
       formats: ['es', 'cjs'],
     },
     rollupOptions: {
       external: [
+        'canvas',
+        'node:module',
         // NOTE: @chenglou/pretext is NOT external — we ship our fork inline.
         // See src/engine/measurement/pretext-fork/README.md
       ],
