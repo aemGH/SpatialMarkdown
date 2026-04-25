@@ -318,12 +318,6 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement): CanvasRenderer 
   function renderCommands(commands: ReadonlyArray<RenderCommand>): void {
     if (destroyed) return;
 
-    // Automatically adapt to browser zoom / DPR changes on the fly
-    if (typeof window !== 'undefined' && window.devicePixelRatio !== dpr) {
-      dpr = window.devicePixelRatio;
-      applyDPRScaling();
-    }
-
     // Clear with identity transform to cover full physical canvas
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -365,6 +359,19 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement): CanvasRenderer 
 
   applyDPRScaling();
 
+  function handleDevicePixelChange(): void {
+    if (destroyed) return;
+    if (typeof window !== 'undefined' && window.devicePixelRatio !== dpr) {
+      dpr = window.devicePixelRatio;
+      applyDPRScaling();
+      requestRedraw();
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', handleDevicePixelChange);
+  }
+
   // ── Public API ───────────────────────────────────────────────────
 
   return {
@@ -388,12 +395,14 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement): CanvasRenderer 
       logicalWidth = width;
       logicalHeight = height;
       applyDPRScaling();
+      requestRedraw();
     },
 
     setDPR(newDpr: number): void {
       if (destroyed) return;
       dpr = newDpr;
       applyDPRScaling();
+      requestRedraw();
     },
 
     destroy(): void {
@@ -401,6 +410,10 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement): CanvasRenderer 
       destroyed = true;
       pendingCommands = null;
       imageCache.clear();
+
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleDevicePixelChange);
+      }
 
       // Clear canvas
       ctx.save();
