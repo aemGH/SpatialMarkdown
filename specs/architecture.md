@@ -2,7 +2,7 @@
 
 > **Status:** Accepted  
 > **Version:** 1.0.0  
-> **Date:** 2026-04-14  
+> **Date:** 2026-04-25  
 > **Core Dependency:** `@chenglou/pretext` v0.0.5
 
 > **Canonical type reference:** The source of truth for all types is `src/types/`.
@@ -19,7 +19,7 @@
 4. [Incremental Update Strategy](#4-incremental-update-strategy)
 5. [Module Map](#5-module-map)
 6. [Pretext Integration Layer](#6-pretext-integration-layer)
-7. [Bridge Architecture](#7-bridge-architecture)
+7. [Cross-Platform Bridge Architecture](#7-cross-platform-bridge-architecture)
 8. [Performance Budget](#8-performance-budget)
 9. [Architectural Decision Records](#9-architectural-decision-records)
 
@@ -39,7 +39,7 @@
 
 - Not a full CSS engine. Constrained subset: block flow, flex, grid, and text inline flow.
 - Not a browser. No events, focus, accessibility trees, or DOM APIs.
-- Not a Markdown renderer. Produces a render tree, not HTML.
+- Not an AI wrapper or consumer product. This is pure layout infrastructure built for developers.
 
 ---
 
@@ -47,15 +47,15 @@
 
 ### Overview
 
-```
+```text
 ┌─────────┐    ┌────────┐    ┌───────────┐    ┌─────────────┐    ┌──────────────┐
-│ LLM     │───▶│ Stream │───▶│ Tokenizer │───▶│ AST Builder │───▶│ Constraint   │
-│ Stream  │    │ Buffer │    │           │    │             │    │ Solver       │
+│ Stream  │───▶│ Ring   │───▶│ Tokenizer │───▶│ AST Builder │───▶│ Constraint   │
+│ Source  │    │ Buffer │    │ (FSM)     │    │             │    │ Solver       │
 └─────────┘    └────────┘    └───────────┘    └─────────────┘    └──────┬───────┘
                                                                         │
 ┌─────────┐    ┌─────────────┐    ┌───────────────┐    ┌───────────────┐│
-│ Renderer│◀───│ Render Cmd  │◀───│ Geometry      │◀───│ Pretext       │◀┘
-│         │    │ Builder     │    │ Calculator    │    │ Measurement   │
+│ Target  │◀───│ Render Cmd  │◀───│ Geometry      │◀───│ Pretext       │◀┘
+│ Runtime │    │ Builder     │    │ Calculator    │    │ Measurement   │
 └─────────┘    └─────────────┘    └───────────────┘    └───────────────┘
 ```
 
@@ -71,16 +71,14 @@
 | 6 | Measurement | Constrained text nodes | `Map<NodeId, MeasurementResult>` | < 2ms | `src/engine/measurement/` |
 | 7 | Geometry Calculator | Measurements + constraints | `LayoutBox[]` | < 1ms | `src/engine/geometry/` |
 | 8 | Render Cmd Builder | `LayoutBox[]` | `RenderCommand[]` | < 0.5ms | `src/renderer/command-builder.ts` |
-| 9 | Renderer | `RenderCommand[]` | Pixels (Canvas), Android Jetpack Compose | < 8ms | `src/renderer/canvas/` and `android/` |
+| 9 | Target Runtime | `RenderCommand[]` | Pixels (Canvas / Compose) | < 8ms | `src/renderer/canvas/` & `android/` |
 
 **Key details:**
 
 - **Stream Buffer**: Accumulates raw text and emits complete tokens at safe boundaries. Signals backpressure when buffer exceeds high watermark (75%).
 - **Tokenizer**: 5-state FSM (`text`, `tag-opening`, `tag-attributes`, `tag-closing`, `self-closing`). Never emits partial tags — buffers until syntactically complete.
-- **AST Builder**: Maintains open-element stack. Text tokens append to current open span. Tag-open pushes to stack, tag-close pops. Auto-closes unclosed tags. Emits `ASTDelta` events.
-- **Transforms**: Ordered pipeline: `autoParagraph` → `headingLevels` → `fontResolver` → `listNumbering`.
-- **Constraint Solver**: Top-down pass. Supports incremental re-solve via dirty flags (only re-solves dirty subtrees).
-- **Measurement**: Cache-backed (`MeasurementCache`, LRU, default 2048 entries). Uses `prepare()` for text-dirty nodes, `layout()` for constraint-dirty nodes.
+- **AST Builder**: Maintains open-element stack. Emits `ASTDelta` events.
+- **Constraint Solver**: Top-down pass. Supports incremental re-solve via dirty flags.
 - **Geometry**: Bottom-up size pass + top-down position pass. Layout modes: block, flex-row, flex-col, grid, absolute.
 - **Render Cmds**: Flat, z-ordered `RenderCommand[]`. 7 command types: `fill-rect`, `stroke-rect`, `fill-text`, `draw-image`, `clip-rect`, `restore-clip`, `draw-line`.
 
@@ -88,25 +86,24 @@
 
 ## 3. Type Architecture
 
-All types are defined in `src/types/` (no runtime code except branded type constructors and theme defaults). See the source files directly for the complete definitions.
+All types are defined in `src/types/` (no runtime code except branded type constructors and theme defaults).
 
 ### Key Design Decisions
 
 - **Branded primitives** (`Pixels`, `NodeId`, `FontDescriptor`) prevent unit confusion at compile time.
-- **`SpatialNode` discriminated union** with `kind` field as discriminant enables exhaustive `switch` checking. 16 node kinds: 5 layout containers, 6 content components, 5 primitives.
-- **`SpatialToken` discriminated union** with 5 token types: `tag-open`, `tag-close`, `text`, `newline`, `eof`.
+- **`SpatialNode` discriminated union** with `kind` field as discriminant enables exhaustive `switch` checking. 16 node kinds.
+- **`SpatialToken` discriminated union** with 5 token types.
 - **`RenderCommand` discriminated union** with 7 command types, all renderer-agnostic.
-- **`MeasurementResult`** — two variants: `height-only` and `line-detail`.
 - **`DirtyFlags`** on each node: `textDirty`, `constraintDirty`, `geometryDirty`, `renderDirty`.
 
 ### Dependency Graph
 
-```
+```text
 types/ ← No dependencies. Pure type declarations.
   │
   ├──► parser/ (tokenizer/, ast/, transforms/)
   ├──► engine/ (constraints/, geometry/, measurement/)
-  ├──► bridge/ (buffer/, streaming/, python-adapter/)
+  ├──► bridge/ (buffer/, streaming/, quickjs-adapter/)
   │
   └──► renderer/ (command-builder, canvas/)
           │
@@ -124,7 +121,7 @@ types/ ← No dependencies. Pure type declarations.
 
 ### The Problem
 
-LLM tokens arrive at 50–200 tokens/second. Naively remeasuring the entire tree per token would be catastrophic. The engine uses dirty flag propagation (ADR-007) to do minimal work per frame.
+Tokens arrive continuously during streaming. Naively remeasuring the entire tree per token would be catastrophic. The engine uses dirty flag propagation (ADR-007) to do minimal work per frame.
 
 ### Three-Phase Dirty Propagation
 
@@ -134,115 +131,52 @@ LLM tokens arrive at 50–200 tokens/second. Naively remeasuring the entire tree
 
 ### Frame Batching
 
-The pipeline runs on `requestAnimationFrame`. Between frames, tokens accumulate and dirty flags collect. At frame start:
+The pipeline runs on `requestAnimationFrame`. Between frames, tokens accumulate and dirty flags collect. 
 
-1. Freeze dirty set
-2. Run AST transforms
-3. Solve constraints (incremental if possible)
-4. Collect text measurement requests
-5. Measure text (cache-backed)
-6. Calculate geometry
-7. Build render commands
-8. Clear dirty flags
-9. Notify subscribers
-
-**Key insight:** During streaming, typically only 1 text node is actively receiving tokens (the "cursor" node). This means ~1 `prepare()` call per frame. Worst case (viewport resize): every text node needs `layout()` but not `prepare()` — for 100 nodes that's ~0.02ms.
-
-### PreparedText Cache
-
-- **Key**: `text + font + whiteSpace + wordBreak`
-- **Strategy**: LRU eviction, 2048 entries (configurable via `EngineConfig.measurementCacheSize`)
-- **States**: EMPTY → READY → STALE → READY. Old handle kept alive during re-prepare to prevent layout shift.
-- **Invalidation**: Text change invalidates specific key. Font change invalidates by font. Viewport resize needs no invalidation (`layout()` only).
+**Key insight:** During streaming, typically only 1 text node is actively receiving tokens (the "cursor" node). This means ~1 `prepare()` call per frame. Worst case (viewport resize): every text node needs `layout()` but not `prepare()`.
 
 ---
 
 ## 5. Module Map
 
-```
+```text
 src/
 ├── types/                     # Shared type declarations (minimal runtime)
 │   ├── primitives.ts          # Branded types: Pixels, NodeId, FontDescriptor, Rect, EdgeInsets
 │   ├── tokens.ts              # SpatialToken union, SpatialTagName, TokenizerState
 │   ├── ast.ts                 # SpatialNode union, all props interfaces, SpatialDocument
-│   ├── delta.ts               # ASTDelta events (node-added, node-closed, text-appended, node-removed)
 │   ├── layout.ts              # LayoutConstraint, MeasurementResult, LayoutBox
-│   ├── layout-constants.ts    # Font/spacing constants for MetricCard, Callout, etc.
-│   ├── render.ts              # RenderCommand union (7 types)
-│   ├── stream.ts              # StreamToken, bridge protocol messages
-│   ├── theme.ts               # ThemeConfig, defaultTheme, darkTheme
-│   └── index.ts               # Barrel re-export
+│   └── render.ts              # RenderCommand union (7 types)
 │
 ├── parser/
 │   ├── tokenizer/
 │   │   ├── state-machine.ts   # 5-state FSM for tag/text classification
-│   │   ├── patterns.ts        # Regex patterns for DSL syntax
-│   │   ├── buffer.ts          # Partial-input buffer for split tokens
-│   │   └── index.ts           # Public API: createTokenizer() → Tokenizer
+│   │   └── buffer.ts          # Partial-input buffer for split tokens
 │   ├── ast/
-│   │   ├── builder.ts         # Incremental AST builder (open-stack, delta emission)
-│   │   ├── id-generator.ts    # Monotonic NodeId allocator
-│   │   ├── node-factory.ts    # Factory functions per node kind (applies defaults)
-│   │   ├── node-map.ts        # O(1) NodeId → SpatialNode lookup
-│   │   ├── validators.ts      # Structural validation (nesting rules)
-│   │   └── index.ts
-│   └── transforms/
-│       ├── auto-paragraph.ts  # Wraps bare text in text nodes
-│       ├── heading-levels.ts  # Normalizes heading levels
-│       ├── font-resolver.ts   # Resolves FontDescriptors from theme
-│       ├── list-numbering.ts  # Ordered list numbering
-│       └── index.ts           # Ordered transform pipeline
+│   │   ├── builder.ts         # Incremental AST builder
+│   │   └── node-map.ts        # O(1) NodeId → SpatialNode lookup
+│   └── transforms/            # Ordered transform pipeline
 │
 ├── engine/
 │   ├── constraints/
-│   │   ├── solver.ts          # Top-down constraint solver (full + incremental)
-│   │   ├── layout-modes.ts    # Constraint resolvers: block, flex, grid, columns, canvas
-│   │   └── index.ts
+│   │   └── solver.ts          # Top-down constraint solver
 │   ├── geometry/
 │   │   ├── calculator.ts      # Bottom-up size + top-down position
-│   │   ├── layout-algorithms.ts # Pure geometry: block-flow, flex, grid, absolute
-│   │   ├── box-model.ts       # Padding/margin computation
-│   │   ├── tree-differ.ts     # LayoutBox tree structural diff
-│   │   └── index.ts
-│   ├── measurement/
-│   │   ├── cache.ts           # MeasurementCache (LRU, pretext wrapper)
-│   │   ├── measurer.ts        # Batch measurement orchestrator
-│   │   ├── text-collector.ts  # Extracts text measurement requests from AST
-│   │   ├── font-loader.ts     # Font loading orchestration
-│   │   └── index.ts
-│   ├── readable-width.ts      # Prose-width calculation (composition rules)
-│   └── tree-utils.ts          # AST traversal helpers
+│   │   └── layout-algorithms.ts # block-flow, flex, grid, absolute
+│   └── measurement/
+│       ├── cache.ts           # MeasurementCache (LRU, pretext wrapper)
+│       └── measurer.ts        # Batch measurement orchestrator
 │
 ├── renderer/
 │   ├── command-builder.ts     # LayoutBox[] → RenderCommand[]
-│   ├── canvas/
-│   │   ├── canvas-renderer.ts # Canvas 2D backend (HiDPI-aware)
-│   │   └── index.ts
+│   └── canvas/                # Canvas 2D backend (HiDPI-aware)
+│
 ├── bridge/
-│   ├── buffer/
-│   │   ├── ring-buffer.ts     # Fixed-size ring buffer (FIFO)
-│   │   ├── backpressure.ts    # Hysteresis controller (75%/25%)
-│   │   └── index.ts
-│   ├── streaming/
-│   │   ├── sse-adapter.ts     # Server-Sent Events adapter
-│   │   ├── ws-adapter.ts      # WebSocket adapter
-│   │   ├── stream-protocol.ts # JSON message serialization
-│   │   └── index.ts
-│   ├── python-adapter/
-│       ├── python-sdk-types.ts # TypeScript types mirroring Python SDK contract
-│       └── index.ts
-│   └── quickjs-adapter/     # Android JS Interface adapter for embedded QuickJS
-│       └── index.ts
+│   ├── buffer/                # Ring buffer & backpressure controller
+│   ├── streaming/             # WebSocket / SSE network adapters
+│   └── quickjs-adapter/       # Android JS Interface adapter
 │
-├── theme/
-│   ├── extract-theme.ts       # Extract theme tokens from URL/HTML
-│   ├── map-extracted-theme.ts # Map extracted tokens to ThemeConfig
-│   └── index.ts
-│
-├── pipeline.ts                # Top-level orchestrator: createPipeline()
-├── scheduler.ts               # rAF frame scheduler (coalesces updates)
-├── config.ts                  # EngineConfig + defaults
-└── index.ts                   # Library entry point (barrel export)
+└── pipeline.ts                # Top-level orchestrator: createPipeline()
 ```
 
 ---
@@ -255,53 +189,31 @@ LRU cache wrapping `@chenglou/pretext` APIs. Default max: 2048 entries.
 
 - **Cache key**: `text + \x00 + font + \x00 + whiteSpace + \x00 + wordBreak`
 - **APIs wrapped**: `prepare()`, `prepareWithSegments()`, `prepareRichInline()`
-- **Eviction**: LRU. During streaming, the "active" paragraph is accessed every frame; old paragraphs naturally evict.
-
-### Invalidation Strategy
-
-| Event | Action |
-|-------|--------|
-| Text content change | Invalidate specific key, re-prepare |
-| Font/theme change | `invalidateByFont()` — clear all entries for that font |
-| Viewport resize | No invalidation needed — only `layout()` is re-called |
-| Font loading complete | `invalidateAll()` — all prior measurements are wrong |
+- **Eviction**: LRU. Employs sentinel nodes (`head`/`tail`) for allocation-free updates.
 
 ### Font Loading
 
-Fonts must be loaded before `prepare()` produces correct results. Strategy:
+Fonts must be loaded before `prepare()` produces correct results. 
 1. Pipeline starts → `FontLoader.preload(theme.allFonts)`
-2. While fonts load → render with system fallback metrics (accept wrong measurements for 1–3 frames)
+2. While fonts load → render with system fallback metrics
 3. Font loaded → `invalidateAll()` on cache
-4. Next frame → full re-prepare with correct font
-5. **This is the one acceptable layout shift in the system.**
+4. Next frame → full re-prepare with correct font. **This is the one acceptable layout shift in the system.**
 
 ---
 
-## 7. Bridge Architecture
+## 7. Cross-Platform Bridge Architecture
 
-### Protocol: WebSocket with SSE Fallback
+The engine decouples layout math from the final drawing API via the `RenderCommand[]` Intermediate Representation (IR). This enables the TypeScript engine to operate headless and bridge to various native runtimes.
 
-```
-Python Agent ──WebSocket──▶ TypeScript Engine
-               ◀─────────
-             OR:
-             ──SSE────────▶
-             ◀─HTTP POST──  (backpressure/config)
-```
+### Android Kotlin & QuickJS Integration
+A core feature of the engine is native mobile rendering without WebViews.
+- **QuickJS Host:** The TS engine compiles to a standalone JS bundle (`build:quickjs`) injected into a lightweight embedded QuickJS C-runtime running on Android.
+- **Bridging:** As streaming text enters Android over the network, it is passed into QuickJS. The TS engine calculates the layout and returns a serialized JSON array of `RenderCommand` objects.
+- **Jetpack Compose:** A native Kotlin renderer reads the commands and draws them directly to an Android Canvas, achieving 60fps native performance with zero garbage collection pauses.
 
-WebSocket: bidirectional, lower latency, supports backpressure signals.  
-SSE: unidirectional fallback, works through proxies/CDNs.
-
-### Message Format
-
-JSON-based, versioned (`PROTOCOL_VERSION = 1`). See `src/types/stream.ts` for the full type definitions.
-
-- **Upstream** (Python → TS): `chunk`, `end`, `error`, `config`, `ping`
-- **Downstream** (TS → Python, WebSocket only): `pause`, `resume`, `ack`, `pong`
-
-### Buffer Management
-
-Ring buffer (default capacity: 256 in pipeline, configurable to 1024 via `EngineConfig.streamBufferCapacity`). Backpressure hysteresis: pause at 75%, resume at 25%.
+### Web / Node Integration
+- **WebSocket / SSE:** Used for streaming byte streams directly into the `ring-buffer` with built-in backpressure hysteresis.
+- **Canvas 2D:** The primary web renderer, handling High-DPI scaling and sub-pixel offsets automatically.
 
 ---
 
@@ -318,18 +230,8 @@ Ring buffer (default capacity: 256 in pipeline, configurable to 1024 via `Engine
 | Pretext Measurement | 2.0ms | 0.0002ms (cache hit) |
 | Geometry Calculator | 1.0ms | 0.1ms |
 | Render Command Build | 0.5ms | 0.1ms |
-| Canvas Render | 8.0ms | 2.0ms |
+| Target Render (Canvas) | 8.0ms | 2.0ms |
 | **Total** | **< 16ms** | |
-
-### Critical Targets
-
-| Metric | Target |
-|--------|--------|
-| Token-to-pixel latency (streaming) | < 16ms (1 frame) |
-| Full re-layout on resize (500 nodes) | < 5ms |
-| `prepare()` cache hit ratio in streaming | > 95% |
-| Memory per 1000 LayoutBox nodes | < 2MB |
-| Frame drops during streaming at 60fps | 0 |
 
 ---
 
@@ -345,10 +247,10 @@ Ring buffer (default capacity: 256 in pipeline, configurable to 1024 via `Engine
 **Status:** Accepted. Max 60 pipeline runs/sec regardless of token rate. Only 1 `prepare()` per dirty text node per frame. Tradeoff: up to 16ms latency between token arrival and pixel.
 
 ### ADR-004: LRU Cache for PreparedText (2048 entries)
-**Status:** Accepted. Bounded memory (~5–10MB). Naturally evicts stale entries during streaming. Configurable via `EngineConfig.measurementCacheSize`.
+**Status:** Accepted. Bounded memory (~5–10MB). Naturally evicts stale entries. Uses sentinel nodes for O(1) mutations. Configurable via `EngineConfig.measurementCacheSize`.
 
 ### ADR-005: Renderer-Agnostic RenderCommand[] IR
-**Status:** Accepted. Thin renderer implementations (~200 LOC each). Easy to add new renderers. Tradeoff: flat list loses tree structure — clipping needs explicit push/pop.
+**Status:** Accepted. Thin renderer implementations (~200 LOC each). Easy to add new renderers (like Kotlin/Compose). Tradeoff: flat list loses tree structure — clipping needs explicit push/pop.
 
 ### ADR-006: WebSocket Primary + SSE Fallback
 **Status:** Accepted. WebSocket for bidirectional backpressure. SSE for proxy/CDN compatibility. JSON messages.
