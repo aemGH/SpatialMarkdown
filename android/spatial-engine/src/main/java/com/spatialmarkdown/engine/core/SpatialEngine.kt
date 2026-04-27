@@ -141,8 +141,6 @@ class SpatialEngine(
             )
 
             // 3. Register PaintBridge for text measurement
-            val globalObj = ctx.getGlobalObject()
-            
             val paintBridgeObj = ctx.createNewJSObject()
             paintBridgeObj.setProperty(
                 "measureText",
@@ -152,7 +150,7 @@ class SpatialEngine(
                     paintBridge.measureText(text, font)
                 }
             )
-            globalObj.setProperty("PaintBridge", paintBridgeObj)
+            ctx.getGlobalObject().setProperty("PaintBridge", paintBridgeObj)
             paintBridgeObj.release()
 
             // 4. Register AndroidSpatialBridge for render-command callback
@@ -166,11 +164,8 @@ class SpatialEngine(
                     null
                 }
             )
-            globalObj.setProperty("AndroidSpatialBridge", bridgeObj)
+            ctx.getGlobalObject().setProperty("AndroidSpatialBridge", bridgeObj)
             bridgeObj.release()
-
-            // Release the global object reference to prevent JNI crash on destroy
-            globalObj.release()
 
             // 5. Load the IIFE bundle from assets
             val bundle = loadAsset("quickjs-engine.js")
@@ -192,39 +187,58 @@ class SpatialEngine(
 
     /** Feed a chunk of Spatial Markdown text into the engine (background thread). */
     fun feed(chunk: String) {
-        if (chunk.isEmpty()) return
-        executor.execute {
-            val ctx = quickJSContext ?: return@execute
-            val escaped = chunk
-                .replace("\\", "\\\\")
-                .replace("'", "\\'")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-            ctx.evaluate("if(window.SpatialEngine) window.SpatialEngine.feed('$escaped');")
+        if (chunk.isEmpty() || executor.isShutdown) return
+        try {
+            executor.execute {
+                val ctx = quickJSContext ?: return@execute
+                val escaped = chunk
+                    .replace("\\", "\\\\")
+                    .replace("'", "\\'")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                ctx.evaluate("if(window.SpatialEngine) window.SpatialEngine.feed('$escaped');")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to execute feed", e)
         }
     }
 
     /** Explicitly flush any pending tokenizer / scheduler state. */
     fun flush() {
-        executor.execute {
-            val ctx = quickJSContext ?: return@execute
-            ctx.evaluate("if(window.SpatialEngine && window.SpatialEngine.flush) window.SpatialEngine.flush();")
+        if (executor.isShutdown) return
+        try {
+            executor.execute {
+                val ctx = quickJSContext ?: return@execute
+                ctx.evaluate("if(window.SpatialEngine && window.SpatialEngine.flush) window.SpatialEngine.flush();")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to execute flush", e)
         }
     }
 
     /** Notify the engine of a viewport resize (background thread). */
     fun resize(width: Float, height: Float) {
-        executor.execute {
-            val ctx = quickJSContext ?: return@execute
-            ctx.evaluate("if(window.SpatialEngine) window.SpatialEngine.resize($width, $height);")
+        if (executor.isShutdown) return
+        try {
+            executor.execute {
+                val ctx = quickJSContext ?: return@execute
+                ctx.evaluate("if(window.SpatialEngine) window.SpatialEngine.resize($width, $height);")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to execute resize", e)
         }
     }
 
     /** Tear down the QuickJS runtime and background executor. */
     fun destroy() {
-        executor.execute {
-            quickJSContext?.destroy()
-            quickJSContext = null
+        if (executor.isShutdown) return
+        try {
+            executor.execute {
+                quickJSContext?.destroy()
+                quickJSContext = null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to destroy context", e)
         }
         executor.shutdown()
     }
