@@ -141,6 +141,8 @@ class SpatialEngine(
             )
 
             // 3. Register PaintBridge for text measurement
+            val globalObj = ctx.getGlobalObject()
+            
             val paintBridgeObj = ctx.createNewJSObject()
             paintBridgeObj.setProperty(
                 "measureText",
@@ -150,7 +152,7 @@ class SpatialEngine(
                     paintBridge.measureText(text, font)
                 }
             )
-            ctx.getGlobalObject().setProperty("PaintBridge", paintBridgeObj)
+            globalObj.setProperty("PaintBridge", paintBridgeObj)
             paintBridgeObj.release()
 
             // 4. Register AndroidSpatialBridge for render-command callback
@@ -164,8 +166,11 @@ class SpatialEngine(
                     null
                 }
             )
-            ctx.getGlobalObject().setProperty("AndroidSpatialBridge", bridgeObj)
+            globalObj.setProperty("AndroidSpatialBridge", bridgeObj)
             bridgeObj.release()
+
+            // Release the global object reference to prevent JNI crash on destroy
+            globalObj.release()
 
             // 5. Load the IIFE bundle from assets
             val bundle = loadAsset("quickjs-engine.js")
