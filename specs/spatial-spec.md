@@ -1078,4 +1078,75 @@ This spec is version `1.0`. The version is encoded in the `SpatialDocument.versi
 
 ---
 
+## Appendix C: Engine API Usage
+
+While this specification primarily defines the tag vocabulary and layout geometry algorithms, consuming the engine in TypeScript requires the `Pipeline` and `Renderer` APIs.
+
+### The Standard Streaming Loop
+
+The engine is designed to be fed partial text chunks directly from a network stream (like SSE or WebSocket). 
+
+```typescript
+import { createPipeline } from '@spatial-markdown/engine';
+import { createCanvasRenderer } from '@spatial-markdown/engine/canvas';
+
+// 1. Initialize the target Canvas renderer
+const canvas = document.querySelector('canvas');
+const canvasRenderer = createCanvasRenderer(canvas);
+canvasRenderer.resize(1280, 720); // Handles HiDPI/Retina scaling internally
+
+// 2. Initialize the layout pipeline
+const pipeline = createPipeline();
+pipeline.resize(1280, 720); // Sets the root constraint for <Slide>
+
+// 3. Subscribe to layout updates
+pipeline.onRender((commands) => {
+  // 'commands' is a flat array of RenderCommand objects
+  // The canvasRenderer blindly paints them at 60fps
+  canvasRenderer.render(commands);
+});
+
+pipeline.onError((err) => {
+  console.error('[Spatial Engine Error]', err);
+});
+
+// 4. Feed the engine as chunks arrive from the LLM
+async function consumeLLMStream(llmStream) {
+  for await (const chunk of llmStream) {
+    // feed() handles the tokenizer state machine.
+    // It buffers partial tags internally and triggers a layout
+    // pass if complete geometry is updated.
+    pipeline.feed(chunk);
+  }
+  
+  // 5. Finalize the layout (force-closes any unclosed tags)
+  pipeline.flush();
+}
+```
+
+### Auto-Resizing Viewports
+
+Because LLM streaming outputs vary in length, you often want the Canvas height to grow dynamically. You can inspect the `RenderCommand[]` to calculate the actual content bounds:
+
+```typescript
+pipeline.onRender((commands) => {
+  // Scan commands to find the lowest 'y + height'
+  let maxBottom = 0;
+  for (const cmd of commands) {
+    if ('height' in cmd) maxBottom = Math.max(maxBottom, cmd.y + cmd.height);
+    if (cmd.kind === 'fill-text') maxBottom = Math.max(maxBottom, cmd.y + cmd.lineHeight);
+  }
+  
+  // Resize the actual DOM canvas if the content grew past it
+  if (maxBottom > currentCanvasHeight) {
+    currentCanvasHeight = maxBottom;
+    canvasRenderer.resize(canvasWidth, currentCanvasHeight);
+  }
+  
+  canvasRenderer.render(commands);
+});
+```
+
+---
+
 *End of Spatial Markdown DSL Specification v1.0*
