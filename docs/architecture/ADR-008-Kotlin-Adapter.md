@@ -31,6 +31,50 @@ The integration module spans Layer D and Layer C:
 
 This achieves high-performance native Kotlin rendering, allows us to tap into Coil/Glide for image resolving, avoids touching the pure TypeScript Core (Layer A/B), and completely circumvents the heavy multi-process overhead of Android WebViews.
 
+## Android API Levels (mirrors web DX layering — ADR-009)
+
+The Android SDK follows the same progressive disclosure as the web API:
+
+### Level 0 — `SpatialMarkdown()` (Zero Config)
+One composable, one parameter. Handles engine lifecycle, feed, and flush automatically.
+
+```kotlin
+SpatialMarkdown(
+    content = "<Slide><Heading level={1}>Hello!</Heading></Slide>",
+    modifier = Modifier.fillMaxWidth()
+)
+```
+
+### Level 0.5 — `SpatialMarkdownStream()` (Streaming)
+For LLM streaming, provides a suspend-friendly controller:
+
+```kotlin
+SpatialMarkdownStream(
+    modifier = Modifier.fillMaxWidth().weight(1f),
+    onReady = { stream ->
+        for (chunk in llmResponse) {
+            stream.feed(chunk)
+        }
+        stream.flush()
+    }
+)
+```
+
+### Level 1 — `SpatialEngineView()` (Production)
+Full control: custom image resolvers, render command JSON access, manual lifecycle.
+
+```kotlin
+SpatialEngineView(
+    modifier = Modifier.weight(1f).fillMaxWidth(),
+    isDarkTheme = true,
+    onControllerReady = { controller -> controller.feed(markup) },
+    onRenderCommandsJSON = { json -> /* golden dump, analytics, etc. */ }
+)
+```
+
+### Level 2 — `SpatialEngine` (Direct QuickJS)
+Raw QuickJS lifecycle management. For custom embedding scenarios.
+
 ## Implementation Rules
 - **No Reflow:** All calculations remain in the JS context. The Android UI is purely a "dumb sink" that draws commands.
 - **Thread Affinity:** QuickJS requires `QuickJSContext.create()` and all `evaluate()` calls to execute on the same thread. The Kotlin wrapper enforces this using a `ScheduledExecutorService`.
