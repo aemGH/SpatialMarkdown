@@ -57,6 +57,8 @@ import { autoDetectMeasurementContext } from './engine/measurement/auto-detect';
 // Renderer layer
 import { buildRenderCommands } from './renderer/command-builder';
 
+import { getNodePadding } from './engine/geometry/box-model';
+
 // Bridge layer (backpressure) — lazy-loaded to avoid bundling for static usage
 import type { RingBuffer } from './bridge/buffer/ring-buffer';
 import type { BackpressureController } from './bridge/buffer/backpressure';
@@ -394,13 +396,24 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
       const commands = buildRenderCommands(boxes, config.theme, doc.nodeIndex);
 
       // 8b. Compute LayoutInfo from geometry output
+      // We must calculate the actual occupied height, NOT the expanded height.
+      // A <Slide> stretches to fill availableHeight, so box.height could be
+      // artificially large. True height = contentHeight + padding.
       let maxBottom = 0;
       let maxRight = 0;
       for (let i = 0; i < boxes.length; i++) {
         const box = boxes[i];
         if (box === undefined) continue;
-        const bottom = box.y + box.height;
-        const right = box.x + box.width;
+
+        const node = doc.nodeIndex.get(box.nodeId);
+        const padding = node ? getNodePadding(node) : { top: 0, bottom: 0, left: 0, right: 0 };
+        
+        const actualHeight = box.contentHeight + padding.top + padding.bottom;
+        const actualWidth = box.contentWidth + padding.left + padding.right;
+
+        const bottom = box.y + actualHeight;
+        const right = box.x + actualWidth;
+
         if (bottom > maxBottom) maxBottom = bottom;
         if (right > maxRight) maxRight = right;
       }
@@ -678,11 +691,9 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
 
     // If the AST already has content, execute the layout pass
     // synchronously so the subscriber sees the result immediately.
-    // This is what makes drag-resize and animation feel instant —
-    // the consumer should never have to call flush() after resize().
-    //
-    // If the AST is empty (no content fed yet), just schedule for
-    // later — the next feed() + frame will pick it up.
+    // This makes drag-resize and animation feel instant and prevents
+    // flicker. However, to avoid 1000hz mouse events locking the UI,
+    // consumers should throttle their inputs or rely on the scheduler.
     if (doc.children.length > 0) {
       executeLayoutPass();
     } else {
