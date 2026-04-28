@@ -43,10 +43,18 @@ import java.util.concurrent.TimeUnit
  */
 class SpatialEngine(
     private val context: Context,
-    private val onRenderCommands: (jsonString: String) -> Unit,
+    private var onRenderCommands: (jsonString: String) -> Unit,
 ) {
     private var quickJSContext: QuickJSContext? = null
     private val paintBridge = PaintMeasurementBridge()
+
+    /**
+     * Swap the render callback. Used after configuration changes (rotation)
+     * to point at the new Compose state from the fresh composition.
+     */
+    fun setRenderCallback(callback: (String) -> Unit) {
+        onRenderCommands = callback
+    }
 
     /**
      * Single dedicated scheduled thread for ALL QuickJS operations.

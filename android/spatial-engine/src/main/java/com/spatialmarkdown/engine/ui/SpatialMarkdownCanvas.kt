@@ -84,6 +84,9 @@ fun SpatialMarkdownCanvas(
                 }
 
                 is RenderCommand.FillText -> {
+                    // Guard: skip rendering if text is empty
+                    if (command.text.isEmpty()) continue
+
                     val parsedFont = parseCssFont(command.font)
                     val textStyle = TextStyle(
                         color = parseCssColor(command.color),
@@ -95,15 +98,18 @@ fun SpatialMarkdownCanvas(
                         textAlign = mapTextAlign(command.align ?: "left")
                     )
 
-                    // The TS Engine handles all wrapping and layout constraints!
-                    // The Android Canvas simply paints the string precisely at the coordinates.
-                    // We turn off softWrap because the TS engine has already split lines where necessary.
+                    // Clamp maxWidth to prevent Compose crash on negative constraints.
+                    // The TS engine can emit negative maxWidth during resize to narrow
+                    // viewports (e.g. rotation). We clamp to 1px minimum.
+                    val safeMaxWidth = maxOf(px(command.maxWidth), 1f)
+
                     drawText(
                         textMeasurer = textMeasurer,
                         text = command.text,
                         style = textStyle,
                         topLeft = Offset(px(command.x), px(command.y)),
-                        softWrap = false
+                        softWrap = false,
+                        size = Size(safeMaxWidth, size.height)
                     )
                 }
 

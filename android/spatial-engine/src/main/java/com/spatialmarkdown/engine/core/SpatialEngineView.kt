@@ -1,5 +1,6 @@
 package com.spatialmarkdown.engine.core
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,8 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.spatialmarkdown.engine.models.RenderCommand
@@ -25,31 +24,34 @@ import kotlinx.serialization.json.Json
 
 private val SpatialJsonFormat = Json {
     ignoreUnknownKeys = true
-    classDiscriminator = "kind" // Must match JSON polymorphic field
+    classDiscriminator = "kind"
+}
+
+/**
+ * Global engine holder that survives configuration changes.
+ *
+ * Rotation is just a resize — the engine handles it via its existing
+ * resize() path. We keep the engine alive across config changes and
+ * only destroy it when the Activity actually finishes.
+ */
+private object RetainedEngine {
+    var holder: EngineHolder? = null
 }
 
 /**
  * The Headless QuickJS Integration Layer.
- * Provides a Jetpack Compose wrapper that manages the embedded QuickJS
- * runtime (no WebView) and draws the Canvas.
  *
- * Signature-compatible with the archived WebView version so consumers
- * swap imports in one line.
- *
- * Lifecycle:
- *   - Engine is created once per Composable instance and remembered across
- *     recomposition (including rotation if the Activity is recreated).
- *   - On viewport size changes, [resize()] is called on the existing engine.
- *   - When the Composable leaves composition, the QuickJS runtime is destroyed.
+ * Rotation is treated as a resize, not a restart. The QuickJS engine
+ * persists across configuration changes and only gets destroyed when
+ * the Activity finishes. The existing `onSizeChanged` → `resize()` path
+ * handles the new viewport dimensions automatically.
  *
  * @param modifier Compose modifier for layout.
- *   The engine receives the actual pixel width/height of this composable,
- *   NOT the full screen dimensions, so content always fits the available space.
  * @param engineUrl Ignored in QuickJS mode (bundle is compiled-in). Kept for API parity.
  * @param isDarkTheme Whether to use dark theme.
- * @param imageResolver Optional image resolver (not yet implemented for QuickJS path).
+ * @param imageResolver Optional image resolver.
  * @param onControllerReady Callback fired with a controller once the engine is ready.
- *                          Only invoked once per engine instance.
+ * @param onRenderCommandsJSON Optional callback with raw JSON for debugging/testing.
  */
 @Composable
 fun SpatialEngineView(
@@ -64,32 +66,48 @@ fun SpatialEngineView(
     val density = LocalDensity.current
     val scrollState = rememberScrollState()
     val renderCommands: MutableState<List<RenderCommand>> = remember { mutableStateOf(emptyList()) }
+    val activity = context as? Activity
 
-    // Remember the engine instance across recompositions.
+    // Get or create the engine — persists across rotation via static holder
     val engineHolder = remember {
-        val engine = SpatialEngine(context) { jsonString ->
-            onRenderCommandsJSON?.invoke(jsonString)
-            try {
-                val commands = SpatialJsonFormat.decodeFromString<List<RenderCommand>>(jsonString)
-                // Guard: only update state if this engine is still the active one
-                // (avoids posting to a dead composition after rotation)
-                renderCommands.value = commands
-            } catch (e: Exception) {
-                android.util.Log.e("SpatialEngine", "Failed to parse commands: ${e.message}")
+        val existing = RetainedEngine.holder
+        if (existing != null && !existing.destroyed) {
+            // Survived rotation — swap render callback to fresh Compose state
+            existing.engine.setRenderCallback { jsonString ->
+                onRenderCommandsJSON?.invoke(jsonString)
+                try {
+                    val commands = SpatialJsonFormat.decodeFromString<List<RenderCommand>>(jsonString)
+                    renderCommands.value = commands
+                } catch (e: Exception) {
+                    android.util.Log.e("SpatialEngine", "Failed to parse commands: ${e.message}")
+                }
             }
+            existing
+        } else {
+            // Fresh engine
+            val engine = SpatialEngine(context) { jsonString ->
+                onRenderCommandsJSON?.invoke(jsonString)
+                try {
+                    val commands = SpatialJsonFormat.decodeFromString<List<RenderCommand>>(jsonString)
+                    renderCommands.value = commands
+                } catch (e: Exception) {
+                    android.util.Log.e("SpatialEngine", "Failed to parse commands: ${e.message}")
+                }
+            }
+            val holder = EngineHolder(engine)
+            RetainedEngine.holder = holder
+            holder
         }
-        EngineHolder(engine)
     }
 
-    // Track the actual composable size in dp, which is what the engine should layout to.
+    // Track composable size in dp
     val sizeDp = remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
 
-    // Initialise once when this remember block is first created (on IO thread).
+    // Init engine only once. On rotation the engine survived — just resize (handled by onSizeChanged).
     LaunchedEffect(engineHolder) {
         if (!engineHolder.initialised) {
             val themeString = if (isDarkTheme) "dark" else "light"
             val (w, h) = sizeDp.value.let { Pair(it.width.toFloat(), it.height.toFloat()) }
-            // If size is not yet known, use a sensible default and resize later.
             val initW = if (w > 0) w else 411f
             val initH = if (h > 0) h else 914f
             try {
@@ -97,32 +115,36 @@ fun SpatialEngineView(
                     engineHolder.engine.init(initW, initH, themeString)
                 }
             } catch (e: Exception) {
-                // Engine init can fail if the coroutine is cancelled during rotation
-                // or if QuickJS native lib has issues. Log and bail gracefully.
                 android.util.Log.e("SpatialEngineView", "Engine init failed: ${e.message}")
                 return@LaunchedEffect
             }
             engineHolder.initialised = true
-
             val controller = SpatialEngineController { engineHolder.engine }
+            engineHolder.controller = controller
             onControllerReady(controller)
         }
+        // On rotation: engine survived, content is intact, onSizeChanged will
+        // trigger resize() which re-renders at the new viewport. Nothing else needed.
     }
 
-    // On size changes, notify the engine to relayout.
+    // Rotation = size change. The engine handles this via resize().
     LaunchedEffect(sizeDp.value) {
         val (w, h) = sizeDp.value.let { Pair(it.width.toFloat(), it.height.toFloat()) }
-        android.util.Log.d("SpatialEngineQuickJS", "Size changed: ${w}x${h} dp")
         if (engineHolder.initialised && w > 0 && h > 0) {
             engineHolder.engine.resize(w, h)
         }
     }
 
-    // Tear down QuickJS runtime when this Composable leaves composition.
+    // Only destroy when Activity is actually finishing — NOT on rotation.
     DisposableEffect(Unit) {
         onDispose {
-            engineHolder.engine.destroy()
-            engineHolder.initialised = false
+            if (activity == null || activity.isFinishing) {
+                engineHolder.engine.destroy()
+                engineHolder.destroyed = true
+                engineHolder.initialised = false
+                engineHolder.controller = null
+                RetainedEngine.holder = null
+            }
         }
     }
 
@@ -136,7 +158,6 @@ fun SpatialEngineView(
                 }
             }
     ) {
-        // Native Render Layer — The UI Canvas
         Box(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
             SpatialMarkdownCanvas(
                 commands = renderCommands.value,
@@ -147,17 +168,15 @@ fun SpatialEngineView(
     }
 }
 
-/**
- * Mutable holder so we can track whether the wrapped engine has been initialised.
- */
 private class EngineHolder(
     val engine: SpatialEngine,
-    var initialised: Boolean = false
+    var initialised: Boolean = false,
+    var destroyed: Boolean = false,
+    var controller: SpatialEngineController? = null
 )
 
 /**
  * Controller allowing external interactions with the QuickJS Spatial Engine.
- * Thin wrapper around [SpatialEngine] for API parity with the WebView path.
  */
 class SpatialEngineController(
     private val engineProvider: () -> SpatialEngine?
