@@ -234,13 +234,25 @@ class SpatialEngine(
         if (executor.isShutdown) return
         try {
             executor.execute {
-                quickJSContext?.destroy()
+                try {
+                    quickJSContext?.destroy()
+                } catch (e: Exception) {
+                    Log.w(TAG, "QuickJS context destroy error (non-fatal): ${e.message}")
+                }
                 quickJSContext = null
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to destroy context", e)
+            Log.e(TAG, "Failed to schedule destroy", e)
         }
-        executor.shutdown()
+        try {
+            executor.shutdown()
+            // Give pending tasks a moment to complete before force-killing
+            if (!executor.awaitTermination(100, TimeUnit.MILLISECONDS)) {
+                executor.shutdownNow()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Executor shutdown interrupted: ${e.message}")
+        }
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────

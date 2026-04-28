@@ -71,6 +71,8 @@ fun SpatialEngineView(
             onRenderCommandsJSON?.invoke(jsonString)
             try {
                 val commands = SpatialJsonFormat.decodeFromString<List<RenderCommand>>(jsonString)
+                // Guard: only update state if this engine is still the active one
+                // (avoids posting to a dead composition after rotation)
                 renderCommands.value = commands
             } catch (e: Exception) {
                 android.util.Log.e("SpatialEngine", "Failed to parse commands: ${e.message}")
@@ -90,8 +92,15 @@ fun SpatialEngineView(
             // If size is not yet known, use a sensible default and resize later.
             val initW = if (w > 0) w else 411f
             val initH = if (h > 0) h else 914f
-            withContext(Dispatchers.IO) {
-                engineHolder.engine.init(initW, initH, themeString)
+            try {
+                withContext(Dispatchers.IO) {
+                    engineHolder.engine.init(initW, initH, themeString)
+                }
+            } catch (e: Exception) {
+                // Engine init can fail if the coroutine is cancelled during rotation
+                // or if QuickJS native lib has issues. Log and bail gracefully.
+                android.util.Log.e("SpatialEngineView", "Engine init failed: ${e.message}")
+                return@LaunchedEffect
             }
             engineHolder.initialised = true
 

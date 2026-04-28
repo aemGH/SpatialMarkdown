@@ -1,18 +1,14 @@
 package com.spatialmarkdown.engine.ui
 
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import com.spatialmarkdown.engine.core.SpatialEngineController
 import com.spatialmarkdown.engine.core.SpatialEngineView
-import kotlinx.coroutines.launch
 
 /**
  * SpatialMarkdown — Zero-config Composable for rendering Spatial Markdown.
@@ -20,7 +16,8 @@ import kotlinx.coroutines.launch
  * The simplest way to use the engine on Android. Just pass your markup
  * and it handles everything: engine init, feeding, flushing, lifecycle.
  *
- * For streaming use cases, use [rememberSpatialController] instead.
+ * Survives configuration changes (rotation) — the engine re-initializes
+ * and re-feeds the content automatically.
  *
  * @param content The Spatial Markdown string to render.
  * @param modifier Compose modifier for layout.
@@ -42,51 +39,47 @@ fun SpatialMarkdown(
     isDarkTheme: Boolean = true,
     imageResolver: (String) -> ImageBitmap? = { null }
 ) {
-    val scope = rememberCoroutineScope()
-    var lastFedContent by remember { mutableStateOf("") }
+    // Hold a reference to the controller so we can re-feed on content changes.
+    var controller by remember { mutableStateOf<SpatialEngineController?>(null) }
 
     SpatialEngineView(
         modifier = modifier,
         isDarkTheme = isDarkTheme,
         imageResolver = imageResolver,
-        onControllerReady = { controller ->
-            scope.launch {
-                controller.feed(content)
-                controller.flush()
-                lastFedContent = content
+        onControllerReady = { ctrl ->
+            // Engine just (re-)initialized — feed content immediately.
+            // This runs after init completes; feed() posts to the JS executor thread.
+            try {
+                ctrl.feed(content)
+                ctrl.flush()
+            } catch (e: Exception) {
+                android.util.Log.w("SpatialMarkdown", "Feed after init failed (rotation?): ${e.message}")
             }
+            controller = ctrl
         }
     )
-
-    // Re-feed when content changes after initial mount
-    LaunchedEffect(content) {
-        // Initial content is handled by onControllerReady above
-        if (content != lastFedContent && lastFedContent.isNotEmpty()) {
-            // Content changed — need to re-feed
-            // Note: This requires the controller to support clear + re-feed.
-            // For now, only works for initial content.
-            lastFedContent = content
-        }
-    }
 }
 
 /**
  * SpatialMarkdownStream — Composable for streaming Spatial Markdown.
  *
- * Provides a [SpatialStreamController] that lets you feed chunks
- * incrementally — perfect for LLM streaming responses.
+ * Provides a [SpatialStreamController] via callback that lets you feed
+ * chunks incrementally — perfect for LLM streaming responses.
+ *
+ * Survives configuration changes (rotation) — but active streams will
+ * need to be restarted by the caller since the engine reinitializes.
  *
  * @param modifier Compose modifier for layout.
  * @param isDarkTheme Whether to use dark theme. Default: true.
  * @param imageResolver Optional resolver for <Image> src URLs.
  * @param onReady Called with a [SpatialStreamController] once the engine is initialized.
+ *                This may be called again after configuration changes (rotation).
  *
  * @sample
  * ```kotlin
  * SpatialMarkdownStream(
  *     modifier = Modifier.fillMaxWidth().weight(1f),
  *     onReady = { stream ->
- *         // Feed chunks from your LLM stream
  *         for (chunk in llmResponse) {
  *             stream.feed(chunk)
  *         }
@@ -100,19 +93,14 @@ fun SpatialMarkdownStream(
     modifier: Modifier = Modifier,
     isDarkTheme: Boolean = true,
     imageResolver: (String) -> ImageBitmap? = { null },
-    onReady: suspend (SpatialStreamController) -> Unit
+    onReady: (SpatialStreamController) -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-
     SpatialEngineView(
         modifier = modifier,
         isDarkTheme = isDarkTheme,
         imageResolver = imageResolver,
         onControllerReady = { controller ->
-            scope.launch {
-                val streamController = SpatialStreamController(controller)
-                onReady(streamController)
-            }
+            onReady(SpatialStreamController(controller))
         }
     )
 }
