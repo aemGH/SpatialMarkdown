@@ -26,7 +26,7 @@
 import type { Pixels, NodeId } from './types/primitives';
 import { px, timestamp } from './types/primitives';
 import type { SpatialDocument, SpatialNode } from './types/ast';
-import type { LayoutConstraint } from './types/layout';
+import type { LayoutConstraint, LayoutInfo } from './types/layout';
 import type { RenderCommand } from './types/render';
 import type { EngineConfig } from './config';
 import { mergeConfig } from './config';
@@ -101,9 +101,13 @@ export interface SpatialPipeline {
    * Subscribe to render command output. The callback fires once per
    * frame with the full set of draw commands for the current state.
    *
+   * The optional second argument provides layout metadata (content
+   * dimensions, node count) that higher-level wrappers use for
+   * auto-sizing canvases.
+   *
    * @returns An unsubscribe function. Call it to remove this callback.
    */
-  readonly onRender: (callback: (commands: ReadonlyArray<RenderCommand>) => void) => () => void;
+  readonly onRender: (callback: (commands: ReadonlyArray<RenderCommand>, info: LayoutInfo) => void) => () => void;
 
   /**
    * Subscribe to pipeline errors. The callback fires when a layout
@@ -189,7 +193,7 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
   };
 
   /** Subscribers for render output */
-  const renderSubscribers: Set<(commands: ReadonlyArray<RenderCommand>) => void> = new Set();
+  const renderSubscribers: Set<(commands: ReadonlyArray<RenderCommand>, info: LayoutInfo) => void> = new Set();
 
   /** Subscribers for error events */
   const errorSubscribers: Set<(error: unknown) => void> = new Set();
@@ -333,7 +337,13 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
 
       if (roots.length === 0) {
         // Nothing to render — notify subscribers with empty commands
-        notifySubscribers([]);
+        const emptyInfo: LayoutInfo = {
+          contentHeight: px(0),
+          contentWidth: px(0),
+          rootCount: 0,
+          nodeCount: doc.nodeIndex.size,
+        };
+        notifySubscribers([], emptyInfo);
         return;
       }
 
@@ -383,11 +393,29 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
       //    for structured components (MetricCard, Callout, etc.)
       const commands = buildRenderCommands(boxes, config.theme, doc.nodeIndex);
 
+      // 8b. Compute LayoutInfo from geometry output
+      let maxBottom = 0;
+      let maxRight = 0;
+      for (let i = 0; i < boxes.length; i++) {
+        const box = boxes[i];
+        if (box === undefined) continue;
+        const bottom = box.y + box.height;
+        const right = box.x + box.width;
+        if (bottom > maxBottom) maxBottom = bottom;
+        if (right > maxRight) maxRight = right;
+      }
+      const layoutInfo: LayoutInfo = {
+        contentHeight: px(maxBottom),
+        contentWidth: px(maxRight),
+        rootCount: roots.length,
+        nodeCount: doc.nodeIndex.size,
+      };
+
       // 9. Clear dirty flags after successful layout pass
       clearDirtyFlags(roots);
 
       // 10. Fire subscriber callbacks
-      notifySubscribers(commands);
+      notifySubscribers(commands, layoutInfo);
     } catch (error: unknown) {
       // Notify error subscribers; fall back to console.error if none.
       notifyErrors(error);
@@ -399,9 +427,9 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
    * Iteration is safe against mid-callback unsubscription because
    * we snapshot the subscriber set via forEach.
    */
-  function notifySubscribers(commands: ReadonlyArray<RenderCommand>): void {
+  function notifySubscribers(commands: ReadonlyArray<RenderCommand>, info: LayoutInfo): void {
     renderSubscribers.forEach((callback) => {
-      callback(commands);
+      callback(commands, info);
     });
   }
 
@@ -584,7 +612,7 @@ export function createPipeline(partialConfig?: Partial<EngineConfig>): SpatialPi
   }
 
   function onRender(
-    callback: (commands: ReadonlyArray<RenderCommand>) => void,
+    callback: (commands: ReadonlyArray<RenderCommand>, info: LayoutInfo) => void,
   ): () => void {
     if (destroyed) {
       // Return a no-op unsubscribe

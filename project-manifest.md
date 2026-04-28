@@ -22,8 +22,10 @@ A high-performance TypeScript layout engine that renders LLM streaming output as
 | Parser | `src/parser/` | Streaming tokenizer (FSM) → incremental AST builder → transform passes |
 | Engine | `src/engine/` | Constraint solver, pretext measurement, geometry calculator. Pure TS, no DOM. |
 | Renderer | `src/renderer/` | Canvas 2D, Android Jetpack Compose backends — all consume `RenderCommand[]` |
-| Bridge | `src/bridge/` | WebSocket/SSE adapters, ring buffer, backpressure controller, Android JS Interface adapter (`src/bridge/quickjs-adapter/`) |
+| Bridge | `src/bridge/` | WebSocket/SSE adapters, ring buffer, backpressure controller, Android JS Interface adapter |
 | Theme | `src/theme/` | Theme extraction from URLs/HTML, mapping to `ThemeConfig` |
+| App | `src/app/` | High-level convenience APIs: `mount()` (Level 0), `createApp()` (Level 1) |
+| Streams | `src/streams/` | LLM stream adapters (fromSSE, fromOpenAI, fromAnthropic, fromGemini) |
 | Pipeline | `src/pipeline.ts` | Top-level orchestrator wiring all layers |
 
 **Pipeline**: `feed()` → Tokenizer → AST Builder → Transforms → Constraint Solver → Measurement → Geometry → Render Commands → Subscribers. Batched per `requestAnimationFrame`.
@@ -33,27 +35,53 @@ A high-performance TypeScript layout engine that renders LLM streaming output as
 ## Specs
 
 - **DSL Specification**: [`specs/spatial-spec.md`](./specs/spatial-spec.md) — tag taxonomy, attributes, layout/streaming behavior, defaults, parser error handling.
-- **Architecture**: [`specs/architecture.md`](./specs/architecture.md) — pipeline design, module map, incremental update strategy, pretext integration, performance budgets, ADRs.
+- **Architecture**: [`specs/architecture.md`](./specs/architecture.md) — pipeline design, API layering, module map, incremental update strategy, pretext integration, performance budgets, ADRs.
 - **System Prompt Guide**: [`specs/system-prompt-guide.md`](./specs/system-prompt-guide.md) — guidance for constructing LLM prompts that produce valid Spatial Markdown.
 
-## Public API
+## Public API — Three Levels
+
+### Level 0 — Zero Config (`mount`)
+
+```ts
+import { mount } from '@spatial-markdown/engine';
+
+const sm = mount('#output', { theme: 'dark' });
+sm.feed('<Slide><Heading level={1}>Hello</Heading></Slide>');
+
+// Stream from LLM:
+import { fromOpenAI } from '@spatial-markdown/engine/streams';
+await sm.feedStream(fromOpenAI(response.body!));
+
+// Cleanup:
+sm.destroy();
+```
+
+### Level 1 — Production (`createApp`)
+
+```ts
+import { createApp } from '@spatial-markdown/engine';
+
+const app = createApp({
+  canvas: document.querySelector('#canvas')!,
+  theme: 'dark',
+  height: 'fit-content',
+});
+
+app.on('render', (info) => console.log(info.layout.contentHeight));
+app.feedComplete('<Slide>...</Slide>');
+app.destroy();
+```
+
+### Level 2 — Advanced (`createPipeline`)
 
 ```ts
 import { createPipeline } from '@spatial-markdown/engine';
 
 const pipeline = createPipeline();
-pipeline.onRender((commands) => { /* draw */ });
-pipeline.feed('<Slide><Heading level={1}>Hello</Heading></Slide>');
+pipeline.onRender((commands, info) => { /* custom rendering */ });
+pipeline.feed(markup);
 pipeline.flush();
-
-// Stream mode:
-pipeline.feedStream(readableStream);
-
-// Resize:
-pipeline.resize(width, height);
-
-// Cleanup:
 pipeline.destroy();
 ```
 
-**Subpath exports**: `@spatial-markdown/engine/canvas`, `/bridge`, `/types`.
+**Subpath exports**: `@spatial-markdown/engine/canvas`, `/streams`, `/bridge`, `/ssr`, `/types`.

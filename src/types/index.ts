@@ -73,6 +73,7 @@ export type {
   HeightOnlyMeasurement,
   LineDetailMeasurement,
   LayoutBox,
+  LayoutInfo,
 } from './layout';
 
 // Render

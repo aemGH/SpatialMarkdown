@@ -55,7 +55,7 @@ private val SpatialJsonFormat = Json {
 fun SpatialEngineView(
     modifier: Modifier = Modifier,
     engineUrl: String = "file:///android_asset/quickjs-engine.js",
-    isDarkTheme: Boolean = false,
+    isDarkTheme: Boolean = true,
     imageResolver: (String) -> androidx.compose.ui.graphics.ImageBitmap? = { null },
     onControllerReady: (SpatialEngineController) -> Unit,
     onRenderCommandsJSON: ((String) -> Unit)? = null

@@ -61,3 +61,21 @@ export interface LayoutBox {
   readonly clipChildren: boolean;
   readonly scrollable: boolean;
 }
+
+// ─── Layout Info (emitted alongside render commands) ─────────────────
+
+/**
+ * Metadata emitted alongside render commands on each layout pass.
+ * Provides computed dimensions that higher-level wrappers need for
+ * auto-sizing canvases, scroll containers, and responsive behavior.
+ */
+export interface LayoutInfo {
+  /** Total content height — the bottom edge of the lowest rendered element. */
+  readonly contentHeight: Pixels;
+  /** Total content width used (may be less than viewport width). */
+  readonly contentWidth: Pixels;
+  /** Number of root-level nodes (e.g., slides). */
+  readonly rootCount: number;
+  /** Number of nodes in the AST. */
+  readonly nodeCount: number;
+}

@@ -2,6 +2,142 @@
 
 A DOM-less, multi-pass layout engine designed for asynchronous streaming text. It calculates pure geometry via a custom AST and renders strictly to Canvas and Android Jetpack Compose, bypassing browser reflows entirely.
 
+## Quick Start
+
+### 2 Lines — Zero Config
+
+```ts
+import { mount } from '@spatial-markdown/engine';
+
+const sm = mount('#output', { theme: 'dark' });
+sm.feed('<Slide><Heading level={1}>Hello World</Heading></Slide>');
+```
+
+### Stream from an LLM — 3 Lines
+
+```ts
+import { mount } from '@spatial-markdown/engine';
+import { fromOpenAI } from '@spatial-markdown/engine/streams';
+
+const sm = mount('#output', { theme: 'dark' });
+const response = await fetch('/api/chat', { method: 'POST', body: JSON.stringify({ messages }) });
+await sm.feedStream(fromOpenAI(response.body!));
+```
+
+### Static Render — 1 Line
+
+```ts
+import { render } from '@spatial-markdown/engine';
+
+const commands = render('<Slide><Heading level={1}>Hello</Heading></Slide>', { width: 800 });
+```
+
+---
+
+## Three API Levels
+
+The engine provides progressive disclosure — start simple, go deeper only when you need to:
+
+| Level | API | Use Case | Lines |
+|-------|-----|----------|-------|
+| **0** | `mount(target, options)` | Prototypes, demos, blogs | 2–3 |
+| **1** | `createApp({ canvas })` | Production apps | ~8 |
+| **2** | `createPipeline()` + `createCanvasRenderer()` | Custom renderers, SSR, Android | ~40 |
+
+### Level 0 — `mount()` (Zero Config)
+
+Auto-creates a canvas, auto-resizes to container, auto-flushes, handles everything.
+
+```ts
+import { mount } from '@spatial-markdown/engine';
+
+const sm = mount('#chat', { theme: 'auto' });
+
+// Feed static content
+sm.feedComplete('<Slide>...</Slide>');
+
+// Or stream from any source
+await sm.feedStream(asyncIterable);
+
+// Cleanup
+sm.destroy();
+```
+
+### Level 1 — `createApp()` (Production)
+
+You own the canvas. The engine owns the coordination (resize, content-height, flush).
+
+```ts
+import { createApp } from '@spatial-markdown/engine';
+
+const app = createApp({
+  canvas: document.querySelector('#canvas')!,
+  theme: 'dark',
+  height: 'fit-content',  // canvas auto-grows to content
+  resize: 'observe',      // ResizeObserver on parent
+});
+
+app.on('render', ({ layout, renderTimeMs }) => {
+  console.log(`Content: ${layout.contentHeight}px, rendered in ${renderTimeMs.toFixed(1)}ms`);
+});
+
+// Stream from LLM
+const res = await fetch('/api/llm', { method: 'POST', body: prompt });
+await app.feedStream(res.body!);
+
+// Access Level 2 primitives when needed
+app.pipeline.getDocument();  // inspect AST
+app.renderer.setDPR(3);     // force DPR
+
+app.destroy();
+```
+
+### Level 2 — `createPipeline()` (Advanced)
+
+Full manual control. Build custom renderers, SSR pipelines, or Android bridges.
+
+```ts
+import { createPipeline } from '@spatial-markdown/engine';
+import { createCanvasRenderer } from '@spatial-markdown/engine/canvas';
+
+const pipeline = createPipeline({ theme: darkTheme });
+const renderer = createCanvasRenderer(canvas);
+
+pipeline.onRender((commands, info) => {
+  renderer.resize(viewportWidth, Math.ceil(info.contentHeight + 32));
+  renderer.render(commands);
+});
+
+pipeline.resize(800, 600);
+pipeline.feed(markup);
+pipeline.flush();
+pipeline.destroy();
+```
+
+---
+
+## Stream Adapters
+
+Connect to any LLM provider with one import:
+
+```ts
+import { fromOpenAI, fromAnthropic, fromGemini, fromSSE } from '@spatial-markdown/engine/streams';
+
+// OpenAI / Azure / Compatible providers
+await sm.feedStream(fromOpenAI(response.body!));
+
+// Anthropic (Claude)
+await sm.feedStream(fromAnthropic(response.body!));
+
+// Google Gemini
+await sm.feedStream(fromGemini(response.body!));
+
+// Custom SSE — extract any field
+await sm.feedStream(fromSSE(response.body!, (data) => data?.text as string));
+```
+
+---
+
 ## Motivation
 
 Standard HTML/DOM architectures suffer from constant layout thrashing (reflows) when text streams in dynamically. This engine was built from first principles to solve this by moving layout calculations entirely out of the DOM. By treating text rendering as a geometry problem, it guarantees strictly zero layout shift during continuous text streams.

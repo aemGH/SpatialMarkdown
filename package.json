@@ -20,6 +20,11 @@
       "import": "./dist/canvas/index.js",
       "require": "./dist/canvas/index.cjs"
     },
+    "./streams": {
+      "types": "./dist/streams/index.d.ts",
+      "import": "./dist/streams/index.js",
+      "require": "./dist/streams/index.cjs"
+    },
     "./bridge": {
       "types": "./dist/bridge/index.d.ts",
       "import": "./dist/bridge/index.js",
